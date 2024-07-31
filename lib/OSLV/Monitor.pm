@@ -3,19 +3,19 @@ package OSLV::Monitor;
 use 5.006;
 use strict;
 use warnings;
+use Module::List qw(list_modules);
 
 =head1 NAME
 
-OSLV::Monitor - The great new OSLV::Monitor!
+OSLV::Monitor - OS level virtualization monitoring extend.
 
 =head1 VERSION
 
-Version 0.01
+Version 0.0.1
 
 =cut
 
-our $VERSION = '0.01';
-
+our $VERSION = '0.0.1';
 
 =head1 SYNOPSIS
 
@@ -25,28 +25,110 @@ Perhaps a little code snippet.
 
     use OSLV::Monitor;
 
-    my $foo = OSLV::Monitor->new();
+    my $monitor = OSLV::Monitor->new();
     ...
 
-=head1 EXPORT
+=head2 METHODS
 
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
+Inits the object.
 
-=head1 SUBROUTINES/METHODS
+One option is taken and that is a hash ref.
 
-=head2 function1
+    # init with the cbsd backend
+    my $monitor->new(backend=>'FreeBSD');
+
+The keys are list as below.
+
+    - backend :: The name of the backend to use.
+        Default :: CBSD
 
 =cut
 
-sub function1 {
+sub new {
+	my ( $blank, %opts ) = @_;
+
+	if ( !defined( $opts{backend} ) ) {
+		$opts{backend} = 'FreeBSD';
+	}
+
+	my $self = {
+				version => 1,
+				backend => $opts{backend},
+				};
+	bless $self;
+
+	return $self;
 }
 
-=head2 function2
+=head2 load
+
+This loads the specified backend.
+
+    eval{ $monitor->load; };
+    if ( $@ ){
+        print "Failed to load the backend... ".$@;
+    }
 
 =cut
 
-sub function2 {
+sub load {
+	my $self = $_[0];
+
+	my $loaded = 0;
+
+	my $backend_test;
+	my $usable;
+	my $test_string = '
+use OSLV::Monitor::Backends::' . $self->{backend} . ';
+$backend_test=OSLV::Monitor::Backends::' . $self->{backend} . '->new;
+$usable=$backend_test->usable;
+';
+	eval($test_string);
+	if ($usable) {
+		$self->{backend_mod} = $backend_test;
+		$loaded = 1;
+	}
+	else {
+		die( 'Failed to load backend... ' . $@ );
+	}
+
+	return $loaded;
+}
+
+=head2 run
+
+Runs the poller backend and report the results.
+
+If nothing is nothing is loaded, load will be called.
+
+    my $status=$monitor->run;
+
+=cut
+
+sub run {
+	my $self = $_[0];
+
+	if ( !defined( $self->{backend_mod} ) ) {
+		return {
+			version     => $self->{version},
+			data        => {},
+			error       => 1,
+			errorString => 'No module loaded',
+		};
+	}
+
+	my $to_return;
+	eval { $to_return = $self->{backend_mod}->run };
+	if ($@) {
+		return {
+			version     => $self->{version},
+			data        => {},
+			error       => 1,
+			errorString => 'Failed to run backend... ' . $@,
+		};
+	}
+
+	return $to_return;
 }
 
 =head1 AUTHOR
@@ -102,4 +184,4 @@ This is free software, licensed under:
 
 =cut
 
-1; # End of OSLV::Monitor
+1;    # End of OSLV::Monitor
