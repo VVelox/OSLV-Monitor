@@ -117,10 +117,11 @@ sub run {
 		};
 	}
 
-	my $to_return;
-	eval { $to_return = $self->{backend_mod}->run };
+	my $to_return_data;
+	#	eval { $to_return_data = $self->{backend_mod}->run };
+	$to_return_data = $self->{backend_mod}->run;
 	if ($@) {
-		return {
+	return {
 			version     => $self->{version},
 			data        => {},
 			error       => 1,
@@ -128,7 +129,12 @@ sub run {
 		};
 	}
 
-	return $to_return;
+	return {
+			version     => $self->{version},
+			data        => $to_return_data,
+			error       => undef,
+			errorString => ''
+			};
 }
 
 =head1 AUTHOR

@@ -1,0 +1,107 @@
+#!perl
+
+=head1 NAME
+
+oslv_monitor - LibreNMS style JSON SNMP extend for OS level virtualization monitoring
+
+=head1 SYNOPSIS
+
+oslv_monitor [B<-c>] [B<-b> <backend>]
+
+=head1 DESCRIPTION
+
+For cron...
+
+    */5 * * * * /usr/local/bin/oslv_monitor -w /var/cache/oslv_monitor.json
+
+For snmpd...
+
+    extend oslv_monitor /bin/cat /var/cache/oslv_monitor.json
+
+=head1 FLAGS
+
+=head2 -b <backend>
+
+The backend to use.
+
+Defaults are as below.
+
+    FreeBSD: CBSD
+    Linux: Libvirt
+
+=head2 -c
+
+Compress the output using gzip and base64 encoded so it
+can be transmitted via SNMP with out issue.
+
+=cut
+
+use JSON;
+use strict;
+use warnings;
+use Getopt::Long;
+use JSON;
+use OSLV::Monitor;
+use MIME::Base64;
+use Gzip::Faster;
+
+sub version {
+	print "oslv_monitor v. 0.0.1\n";
+}
+
+sub help {
+	&version;
+
+	print '
+-b <backend>    The backend to use.
+
+-c              gzip the json and then base64 encode it
+
+Backends include by default...
+FreeBSD - Default on FreeBSD
+';
+} ## end sub help
+
+my $backend;
+if ( $^O eq 'freebsd' ) {
+	$backend = 'FreeBSD';
+} elsif ( $^O eq 'linux' ) {
+	$backend = 'cgroup';
+}
+
+# get the commandline options
+my $help     = 0;
+my $version  = 0;
+my $compress = 0;
+my $write    = 0;
+Getopt::Long::Configure('no_ignore_case');
+Getopt::Long::Configure('bundling');
+GetOptions(
+	'version' => \$version,
+	'v'       => \$version,
+	'help'    => \$help,
+	'h'       => \$help,
+	'b=s'     => \$backend,
+	'c'       => \$compress,
+	'w'       => \$write,
+);
+
+my $monitor = OSLV::Monitor->new( backend => $backend );
+
+eval { $monitor->load; };
+if ($@) {
+	print encode_json( { version => 1, data => {}, error => 1, errorString => 'load failed... ' . $@ } ) . "\n";
+	exit 1;
+}
+
+my $data = encode_json( $monitor->run );
+
+if ( !$compress ) {
+	print $data. "\n";
+	exit;
+}
+
+my $compressed = encode_base64( gzip($data) );
+$compressed =~ s/\n//g;
+print $compressed . "\n";
+
