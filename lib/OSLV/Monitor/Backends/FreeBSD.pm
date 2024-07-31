@@ -57,7 +57,6 @@ sub run {
 	my $data = {
 		oslvms => {},
 		totals => {
-			'accounting-flag'              => 0,
 			'copy-on-write-faults'         => 0,
 			'cpu-time'                     => 0,
 			'data-size'                    => 0,
@@ -84,7 +83,7 @@ sub run {
 	};
 
 	my @stats = (
-		'accounting-flag',   'copy-on-write-faults',         'cpu-time',      'data-size',
+		'copy-on-write-faults',         'cpu-time',      'data-size',
 		'elapsed-time',      'involuntary-context-switches', 'major-faults',  'minor-faults',
 		'percent-cpu',       'percent-memory',               'pid',           'read-blocks',
 		'received-messages', 'rss',                          'sent-messages', 'stack-size',
@@ -111,7 +110,6 @@ sub run {
 			if ( $proc->{'jail-name'} ne '-' ) {
 				if ( !defined( $data->{oslvms}{ $proc->{'jail-name'} } ) ) {
 					$data->{oslvms}{ $proc->{'jail-name'} } = {
-						'accounting-flag'              => 0,
 						'copy-on-write-faults'         => 0,
 						'cpu-time'                     => 0,
 						'data-size'                    => 0,
@@ -159,6 +157,12 @@ sub run {
 							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $seconds;
 						$data->{totals}{$stat} = $data->{totals}{$stat} + $seconds;
 					} else {
+#						if (!defined( $data->{oslvms}{ $proc->{'jail-name'} }{$stat} )){
+#							$data->{oslvms}{ $proc->{'jail-name'} }{$stat} = 0;
+#						}
+#						if (!defined($data->{totals}{$stat})) {
+#							$data->{totals}{$stat} = 0;
+#						}
 						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
 							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $proc->{$stat};
 						$data->{totals}{$stat} = $data->{totals}{$stat} + $proc->{$stat};
