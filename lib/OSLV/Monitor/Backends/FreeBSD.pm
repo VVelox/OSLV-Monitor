@@ -60,7 +60,7 @@ sub run {
 			'copy-on-write-faults'         => 0,
 			'cpu-time'                     => 0,
 			'data-size'                    => 0,
-			'elapsed-time'                 => 0,
+			'elapsed-times'                => 0,
 			'involuntary-context-switches' => 0,
 			'major-faults'                 => 0,
 			'minor-faults'                 => 0,
@@ -83,12 +83,12 @@ sub run {
 	};
 
 	my @stats = (
-		'copy-on-write-faults',         'cpu-time',      'data-size',
-		'elapsed-time',      'involuntary-context-switches', 'major-faults',  'minor-faults',
-		'percent-cpu',       'percent-memory',               'pid',           'read-blocks',
-		'received-messages', 'rss',                          'sent-messages', 'stack-size',
-		'swaps',             'system-time',                  'text-size',     'user-time',
-		'virtual-size',      'voluntary-context-switches',   'written-blocks',
+		'copy-on-write-faults',         'cpu-time',      'data-size',    'elapsed-times',
+		'involuntary-context-switches', 'major-faults',  'minor-faults', 'percent-cpu',
+		'percent-memory',               'pid',           'read-blocks',  'received-messages',
+		'rss',                          'sent-messages', 'stack-size',   'swaps',
+		'system-time',                  'text-size',     'user-time',    'virtual-size',
+		'voluntary-context-switches',   'written-blocks',
 	);
 
 	my $output
@@ -113,7 +113,7 @@ sub run {
 						'copy-on-write-faults'         => 0,
 						'cpu-time'                     => 0,
 						'data-size'                    => 0,
-						'elapsed-time'                 => 0,
+						'elapsed-times'                => 0,
 						'involuntary-context-switches' => 0,
 						'major-faults'                 => 0,
 						'minor-faults'                 => 0,
@@ -157,16 +157,10 @@ sub run {
 							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $seconds;
 						$data->{totals}{$stat} = $data->{totals}{$stat} + $seconds;
 					} else {
-#						if (!defined( $data->{oslvms}{ $proc->{'jail-name'} }{$stat} )){
-#							$data->{oslvms}{ $proc->{'jail-name'} }{$stat} = 0;
-#						}
-#						if (!defined($data->{totals}{$stat})) {
-#							$data->{totals}{$stat} = 0;
-#						}
 						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
 							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $proc->{$stat};
 						$data->{totals}{$stat} = $data->{totals}{$stat} + $proc->{$stat};
-					}
+					} ## end else [ if ( defined( $times->{$stat} ) ) ]
 				} ## end foreach my $stat (@stats)
 			} ## end if ( $proc->{'jail-name'} ne '-' )
 		} ## end foreach my $proc ( @{ $ps->{'process-information'...}})
