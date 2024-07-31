@@ -141,7 +141,7 @@ sub run {
 					if ( defined( $times->{$stat} ) ) {
 						# [days-][hours:]minutes:seconds
 						my $seconds = 0;
-						my $time    = $proc->{'jail-name'}{$stat};
+						my $time    = $proc->{$stat};
 						if ( $time =~ /-/ ) {
 							my $days = $time;
 							$days =~ s/\-.*$//;
@@ -155,9 +155,13 @@ sub run {
 								$seconds = $seconds + ( 60 * $time_split[1] ) + $time_split[1];
 							}
 						}
+						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
+							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $seconds;
+						$data->{totals}{$stat} = $data->{totals}{$stat} + $seconds;
 					} else {
-						$data->{oslvms}{ $proc->{'jail-name'} }{$stat} = $proc->{$stat};
-						$data->{totals}{$stat} = $proc->{$stat};
+						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
+							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $proc->{$stat};
+						$data->{totals}{$stat} = $data->{totals}{$stat} + $proc->{$stat};
 					}
 				} ## end foreach my $stat (@stats)
 			} ## end if ( $proc->{'jail-name'} ne '-' )
