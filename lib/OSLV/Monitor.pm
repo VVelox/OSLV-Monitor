@@ -49,11 +49,21 @@ sub new {
 
 	if ( !defined( $opts{backend} ) ) {
 		$opts{backend} = 'FreeBSD';
+		if ( $^O eq 'freebsd' ) {
+			$opts{backend} = 'FreeBSD';
+		} elsif ( $^O eq 'linux' ) {
+			$opts{backend} = 'cgroup';
+		}
+	}
+
+	if (!defined($opts{base_dir})) {
+		$opts{base_dir}='/var/cache/oslv_monitor';
 	}
 
 	my $self = {
 				version => 1,
 				backend => $opts{backend},
+				base_dir => $opts{base_dir},
 				};
 	bless $self;
 
@@ -80,7 +90,7 @@ sub load {
 	my $usable;
 	my $test_string = '
 use OSLV::Monitor::Backends::' . $self->{backend} . ';
-$backend_test=OSLV::Monitor::Backends::' . $self->{backend} . '->new;
+$backend_test=OSLV::Monitor::Backends::' . $self->{backend} . '->new(base_dir=>$self->{base_dir}));
 $usable=$backend_test->usable;
 ';
 	eval($test_string);

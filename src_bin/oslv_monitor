@@ -12,11 +12,11 @@ oslv_monitor [B<-c>] [B<-b> <backend>]
 
 For cron...
 
-    */5 * * * * /usr/local/bin/oslv_monitor -w /var/cache/oslv_monitor.json
+    */5 * * * * /usr/local/bin/oslv_monitor -q
 
 For snmpd...
 
-    extend oslv_monitor /bin/cat /var/cache/oslv_monitor.json
+    extend oslv_monitor /bin/cat /var/cache/oslv_monitor/snmp
 
 =head1 FLAGS
 
@@ -26,8 +26,8 @@ The backend to use.
 
 Defaults are as below.
 
-    FreeBSD: CBSD
-    Linux: Libvirt
+    FreeBSD: FreeBSD
+    Linux: cgroup
 
 =head2 -c
 
@@ -43,7 +43,8 @@ use Getopt::Long;
 use JSON;
 use OSLV::Monitor;
 use MIME::Base64;
-use Gzip::Faster;
+use IO::Compress::Gzip qw(gzip $GzipError);
+use File::Slurp;
 
 sub version {
 	print "oslv_monitor v. 0.0.1\n";
@@ -59,6 +60,7 @@ sub help {
 
 Backends include by default...
 FreeBSD - Default on FreeBSD
+cgroups - Default on Linux
 ';
 } ## end sub help
 
@@ -72,8 +74,8 @@ if ( $^O eq 'freebsd' ) {
 # get the commandline options
 my $help     = 0;
 my $version  = 0;
-my $compress = 0;
-my $write    = 0;
+my $base_dir = '/var/cache/oslv_monitor';
+my $quiet;
 Getopt::Long::Configure('no_ignore_case');
 Getopt::Long::Configure('bundling');
 GetOptions(
@@ -82,11 +84,15 @@ GetOptions(
 	'help'    => \$help,
 	'h'       => \$help,
 	'b=s'     => \$backend,
-	'c'       => \$compress,
-	'w'       => \$write,
+	'o=s'     => \$base_dir,
+	'q'       => \$quiet,
 );
 
-my $monitor = OSLV::Monitor->new( backend => $backend );
+my $monitor = OSLV::Monitor->new( backend => $backend, base_dir => $base_dir, );
+
+if ( !-d $base_dir ) {
+	mkdir($base_dir) || die( 'Unable to mkdir "' . $base_dir . '"' );
+}
 
 eval { $monitor->load; };
 if ($@) {
@@ -96,12 +102,16 @@ if ($@) {
 
 my $data = encode_json( $monitor->run );
 
-if ( !$compress ) {
+if ( !$quiet ) {
 	print $data. "\n";
-	exit;
 }
 
-my $compressed = encode_base64( gzip($data) );
-$compressed =~ s/\n//g;
-print $compressed . "\n";
+write_file( $base_dir . '/json', $data . "\n" );
 
+my $toReturnCompressed;
+gzip \$data => \$toReturnCompressed;
+my $compressed = encode_base64($toReturnCompressed);
+$compressed =~ s/\n//g;
+$compressed = $compressed . "\n";
+
+write_file( $base_dir . '/snmp', $compressed );

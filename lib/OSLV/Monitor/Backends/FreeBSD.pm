@@ -4,6 +4,7 @@ use 5.006;
 use strict;
 use warnings;
 use JSON;
+use Clone;
 
 =head1 NAME
 
@@ -39,11 +40,17 @@ Initiates the backend object.
 =cut
 
 sub new {
-	my $self = { version => 1, };
+	my ( $blank, %opts ) = @_;
+
+	if ( !defined( $opts{base_dir} ) ) {
+		$opts{base_dir} = '/var/cache/oslv_monitor';
+	}
+
+	my $self = { version => 1, proc_cache => $opts{base_dir} . '/freebsd_proc_cache.json' };
 	bless $self;
 
 	return $self;
-}
+} ## end sub new
 
 =head2 run
 
@@ -55,8 +62,10 @@ sub run {
 	my $self = $_[0];
 
 	my $data = {
-		oslvms => {},
-		totals => {
+		errors        => [],
+		cache_failure => 0,
+		oslvms        => {},
+		totals        => {
 			'copy-on-write-faults'         => 0,
 			'cpu-time'                     => 0,
 			'data-size'                    => 0,
@@ -79,8 +88,82 @@ sub run {
 			'virtual-size'                 => 0,
 			'voluntary-context-switches'   => 0,
 			'written-blocks'               => 0,
+			'procs'                        => 0,
 		},
 	};
+
+	my $proc_cache;
+	my $new_proc_cache = {};
+	if ( -f $proc_cache ) {
+		eval {
+			my $raw_cache = read_file( $self->{proc_cache} );
+			$proc_cache = decode_json($raw_cache);
+		};
+		if ($@) {
+			push(
+				@{ $data->{errors} },
+				'reading proc cache "' . $self->{proc_cache} . '" failed... using a empty one...' . $@
+			);
+			$data->{cache_failure} = 1;
+			$proc_cache = {};
+		}
+	} ## end if ( -f $proc_cache )
+
+	my $base_stats = {
+		'copy-on-write-faults'         => 0,
+		'cpu-time'                     => 0,
+		'data-size'                    => 0,
+		'elapsed-times'                => 0,
+		'involuntary-context-switches' => 0,
+		'major-faults'                 => 0,
+		'minor-faults'                 => 0,
+		'percent-cpu'                  => 0,
+		'percent-memory'               => 0,
+		'pid'                          => 0,
+		'read-blocks'                  => 0,
+		'received-messages'            => 0,
+		'rss'                          => 0,
+		'sent-messages'                => 0,
+		'stack-size'                   => 0,
+		'swaps'                        => 0,
+		'system-time'                  => 0,
+		'text-size'                    => 0,
+		'user-time'                    => 0,
+		'virtual-size'                 => 0,
+		'voluntary-context-switches'   => 0,
+		'written-blocks'               => 0,
+		'procs'                        => 0,
+		'ipv4'                         => undef,
+		'path'                         => undef,
+		'ipv6'                         => undef,
+	};
+
+	# get a list of jails
+	my $output = `jls --libxo json 2> /dev/null`;
+	my $jls;
+	eval { $jls = decode_json($output) };
+	if ($@) {
+		push( @{ $data->{errors} }, 'decoding output from "jls --libxo json 2> /dev/null" failed... ' . $@ );
+		return $data;
+	}
+	if (   defined($jls)
+		&& ref($jls) eq 'HASH'
+		&& defined( $jls->{'jail-information'} )
+		&& ref( $jls->{'jail-information'} ) eq 'HASH'
+		&& defined( $jls->{'jail-information'}{jail} )
+		&& ref( $jls->{'jail-information'}{jail} ) eq 'ARRAY' )
+	{
+		foreach my $jls_jail ( @{ $jls->{'jail-information'}{jail} } ) {
+			$data->{oslvms}{ $jls_jail->{'hostname'} } = clone($base_stats);
+			$data->{oslvms}{ $jls_jail->{'hostname'} }{path} = $jls_jail->{path};
+			if ( defined( $jls_jail->{ipv4} ) && $jls_jail->{ipv4} ne '' ) {
+				$data->{oslvms}{ $jls_jail->{'hostname'} }{ipv4} = $jls_jail->{ipv4};
+			}
+			if ( defined( $jls_jail->{ipv6} ) && $jls_jail->{ipv6} ne '' ) {
+				$data->{oslvms}{ $jls_jail->{'hostname'} }{ipv6} = $jls_jail->{ipv6};
+			}
+		} ## end foreach my $jls_jail ( @{ $jls->{'jail-information'...}})
+	} ## end if ( defined($jls) && ref($jls) eq 'HASH' ...)
 
 	my @stats = (
 		'copy-on-write-faults',         'cpu-time',      'data-size',    'elapsed-times',
@@ -91,51 +174,57 @@ sub run {
 		'voluntary-context-switches',   'written-blocks',
 	);
 
-	my $output
-		= `ps a --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz 2> /dev/null`;
+	$output
+		= `ps a --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command 2> /dev/null`;
 	my $ps;
 	eval { $ps = decode_json($output); };
 	if ($@) {
+		push( @{ $data->{errors} }, 'decoding output from ps failed... ' . $@ );
 		return $data;
 	}
 
+	# values that are time stats that require additional processing
 	my $times = { 'cpu-time' => 1, 'system-time' => 1, 'user-time' => 1, };
+	# these are counters and differences needed computed for them
+	my $counters = {
+		'cpu-time'                     => 1,
+		'system-time'                  => 1,
+		'user-time'                    => 1,
+		'read-blocks'                  => 1,
+		'major-faults'                 => 1,
+		'elapsed-times'                => 1,
+		'involuntary-context-switches' => 1,
+		'minor-faults'                 => 1,
+		'received-messages'            => 1,
+		'sent-messages'                => 1,
+		'swaps'                        => 1,
+		'voluntary-context-switches'   => 1,
+		'written-blocks'               => 1,
+	};
 
-	if (   defined( $ps->{'process-information'} )
+	if (   defined($ps)
+		&& ref($ps) eq 'HASH'
+		&& defined( $ps->{'process-information'} )
 		&& ref( $ps->{'process-information'} ) eq 'HASH'
 		&& defined( $ps->{'process-information'}{process} )
 		&& ref( $ps->{'process-information'}{process} ) eq 'ARRAY' )
 	{
 		foreach my $proc ( @{ $ps->{'process-information'}{process} } ) {
 			if ( $proc->{'jail-name'} ne '-' ) {
+				# should not happen in general... only happens if a jail was just created in between jls and ps
 				if ( !defined( $data->{oslvms}{ $proc->{'jail-name'} } ) ) {
-					$data->{oslvms}{ $proc->{'jail-name'} } = {
-						'copy-on-write-faults'         => 0,
-						'cpu-time'                     => 0,
-						'data-size'                    => 0,
-						'elapsed-times'                => 0,
-						'involuntary-context-switches' => 0,
-						'major-faults'                 => 0,
-						'minor-faults'                 => 0,
-						'percent-cpu'                  => 0,
-						'percent-memory'               => 0,
-						'pid'                          => 0,
-						'read-blocks'                  => 0,
-						'received-messages'            => 0,
-						'rss'                          => 0,
-						'sent-messages'                => 0,
-						'stack-size'                   => 0,
-						'swaps'                        => 0,
-						'system-time'                  => 0,
-						'text-size'                    => 0,
-						'user-time'                    => 0,
-						'virtual-size'                 => 0,
-						'voluntary-context-switches'   => 0,
-						'written-blocks'               => 0,
-					};
-				} ## end if ( !defined( $data->{oslvms}{ $proc->{'jail-name'...}}))
+					$data->{oslvms}{ $proc->{'jail-name'} } = clone($base_stats);
+				}
+
+				my $cache_name
+					= $proc->{pid} . '-'
+					. $proc->{uid} . '-'
+					. $proc->{gid} . '-'
+					. $proc->{'jail-id'} . '-'
+					. $proc->{command};
 
 				foreach my $stat (@stats) {
+					# pre-process the stat if it is a time value that requires it
 					if ( defined( $times->{$stat} ) ) {
 						# [days-][hours:]minutes:seconds
 						my $seconds = 0;
@@ -153,18 +242,31 @@ sub run {
 								$seconds = $seconds + ( 60 * $time_split[1] ) + $time_split[1];
 							}
 						}
-						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
-							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $seconds;
-						$data->{totals}{$stat} = $data->{totals}{$stat} + $seconds;
+						$proc->{$stat} = $seconds;
+					} ## end if ( defined( $times->{$stat} ) )
+
+					if ( $counters->{$stat} ) {
+						if ( defined( $proc_cache->{$cache_name} ) && defined( $proc_cache->{$cache_name}{$stat} ) ) {
+							my $new_value = $proc->{$stat} - $proc_cache->{$cache_name}{$stat};
+						} else {
+							$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
+								= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $proc->{$stat};
+							$data->{totals}{$stat} = $data->{totals}{$stat} + $proc->{$stat};
+						}
 					} else {
 						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
 							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $proc->{$stat};
 						$data->{totals}{$stat} = $data->{totals}{$stat} + $proc->{$stat};
-					} ## end else [ if ( defined( $times->{$stat} ) ) ]
+					}
 				} ## end foreach my $stat (@stats)
+
+				$data->{oslvms}{ $proc->{'jail-name'} }{procs}++;
+				$data->{totals}{procs}++;
+
+				$new_proc_cache->{$cache_name} = $proc;
 			} ## end if ( $proc->{'jail-name'} ne '-' )
 		} ## end foreach my $proc ( @{ $ps->{'process-information'...}})
-	} ## end if ( defined( $ps->{'process-information'}...))
+	} ## end if ( defined($ps) && ref($ps) eq 'HASH' &&...)
 
 	return $data;
 } ## end sub run
