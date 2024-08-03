@@ -76,7 +76,6 @@ sub run {
 			'minor-faults'                 => 0,
 			'percent-cpu'                  => 0,
 			'percent-memory'               => 0,
-			'pid'                          => 0,
 			'read-blocks'                  => 0,
 			'received-messages'            => 0,
 			'rss'                          => 0,
@@ -120,7 +119,6 @@ sub run {
 		'minor-faults'                 => 0,
 		'percent-cpu'                  => 0,
 		'percent-memory'               => 0,
-		'pid'                          => 0,
 		'read-blocks'                  => 0,
 		'received-messages'            => 0,
 		'rss'                          => 0,
@@ -167,12 +165,17 @@ sub run {
 	} ## end if ( defined($jls) && ref($jls) eq 'HASH' ...)
 
 	my @stats = (
-		'copy-on-write-faults',         'cpu-time',      'data-size',    'elapsed-times',
-		'involuntary-context-switches', 'major-faults',  'minor-faults', 'percent-cpu',
-		'percent-memory',               'pid',           'read-blocks',  'received-messages',
-		'rss',                          'sent-messages', 'stack-size',   'swaps',
-		'system-time',                  'text-size',     'user-time',    'virtual-size',
-		'voluntary-context-switches',   'written-blocks',
+		'copy-on-write-faults',         'cpu-time',
+		'data-size',                    'elapsed-times',
+		'involuntary-context-switches', 'major-faults',
+		'minor-faults',                 'percent-cpu',
+		'percent-memory',               'read-blocks',
+		'received-messages',            'rss',
+		'sent-messages',                'stack-size',
+		'swaps',                        'system-time',
+		'text-size',                    'user-time',
+		'virtual-size',                 'voluntary-context-switches',
+		'written-blocks',
 	);
 
 	$output
