@@ -107,7 +107,7 @@ sub run {
 			$data->{cache_failure} = 1;
 			$proc_cache = {};
 		}
-	} ## end if ( -f $proc_cache )
+	} ## end if ( -f $self->{proc_cache} )
 
 	my $base_stats = {
 		'copy-on-write-faults'         => 0,
@@ -139,7 +139,7 @@ sub run {
 	};
 
 	# get a list of jails
-	my $output = `jls --libxo json 2> /dev/null`;
+	my $output = `/usr/sbin/jls --libxo json 2> /dev/null`;
 	my $jls;
 	eval { $jls = decode_json($output) };
 	if ($@) {
@@ -175,7 +175,7 @@ sub run {
 	);
 
 	$output
-		= `ps a --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command,jid 2> /dev/null`;
+		= `/bin/ps a --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command,jid 2> /dev/null`;
 	my $ps;
 	eval { $ps = decode_json($output); };
 	if ($@) {
@@ -267,6 +267,13 @@ sub run {
 			} ## end if ( $proc->{'jail-name'} ne '-' )
 		} ## end foreach my $proc ( @{ $ps->{'process-information'...}})
 	} ## end if ( defined($ps) && ref($ps) eq 'HASH' &&...)
+
+	# save the proc cache for next run
+	eval { write_file( $self->{proc_cache}, encode_json($new_proc_cache) ); };
+	if ($@) {
+		push( @{ $data->{errors} }, 'saving proc cache failed, "' . $self->{proc_cache} . '"... ' . $@ );
+		return $data;
+	}
 
 	return $data;
 } ## end sub run
