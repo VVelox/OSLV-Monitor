@@ -201,6 +201,7 @@ sub run {
 		'swaps'                        => 1,
 		'voluntary-context-switches'   => 1,
 		'written-blocks'               => 1,
+		'copy-on-write-faults'         => 1,
 	};
 
 	if (   defined($ps)
