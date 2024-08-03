@@ -94,7 +94,7 @@ sub run {
 
 	my $proc_cache;
 	my $new_proc_cache = {};
-	if ( -f $proc_cache ) {
+	if ( -f $self->{proc_cache} ) {
 		eval {
 			my $raw_cache = read_file( $self->{proc_cache} );
 			$proc_cache = decode_json($raw_cache);
