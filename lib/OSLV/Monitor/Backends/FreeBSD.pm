@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use JSON;
 use Clone 'clone';
+use File::Slurp;
 
 =head1 NAME
 
