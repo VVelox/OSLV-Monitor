@@ -36,7 +36,15 @@ our $VERSION = '0.0.1';
 
 Initiates the backend object.
 
-    my $backend=OSLV::MOnitor::Backend::FreeBSD->new;
+    my $backend=OSLV::MOnitor::Backend::FreeBSD->new(
+        base_dir => $base_dir,
+    );
+
+The following arguments are usable.
+
+    - base_dir :: Path to use for the base dir, where the proc
+            cache, freebsd_proc_cache.json, is is created.
+        Default :: /var/cache/oslv_monitor
 
 =cut
 
@@ -89,6 +97,7 @@ sub run {
 			'voluntary-context-switches'   => 0,
 			'written-blocks'               => 0,
 			'procs'                        => 0,
+			'signals-taken'                => 0,
 		},
 	};
 
@@ -132,6 +141,7 @@ sub run {
 		'voluntary-context-switches'   => 0,
 		'written-blocks'               => 0,
 		'procs'                        => 0,
+		'signals-taken'                => 0,
 		'ipv4'                         => undef,
 		'path'                         => undef,
 		'ipv6'                         => undef,
@@ -175,7 +185,7 @@ sub run {
 		'swaps',                        'system-time',
 		'text-size',                    'user-time',
 		'virtual-size',                 'voluntary-context-switches',
-		'written-blocks',
+		'written-blocks',               'signals-taken',
 	);
 
 	$output
@@ -205,6 +215,7 @@ sub run {
 		'voluntary-context-switches'   => 1,
 		'written-blocks'               => 1,
 		'copy-on-write-faults'         => 1,
+		'signals-taken'                => 1,
 	};
 
 	if (   defined($ps)
