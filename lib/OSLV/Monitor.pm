@@ -90,7 +90,7 @@ sub load {
 	my $usable;
 	my $test_string = '
 use OSLV::Monitor::Backends::' . $self->{backend} . ';
-$backend_test=OSLV::Monitor::Backends::' . $self->{backend} . '->new(base_dir=>$self->{base_dir}));
+$backend_test=OSLV::Monitor::Backends::' . $self->{backend} . '->new(base_dir=>$self->{base_dir});
 $usable=$backend_test->usable;
 ';
 	eval($test_string);
