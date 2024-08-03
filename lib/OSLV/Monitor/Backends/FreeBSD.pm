@@ -4,7 +4,7 @@ use 5.006;
 use strict;
 use warnings;
 use JSON;
-use Clone;
+use Clone 'clone';
 
 =head1 NAME
 
@@ -175,7 +175,7 @@ sub run {
 	);
 
 	$output
-		= `ps a --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command 2> /dev/null`;
+		= `ps a --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command,jid 2> /dev/null`;
 	my $ps;
 	eval { $ps = decode_json($output); };
 	if ($@) {
