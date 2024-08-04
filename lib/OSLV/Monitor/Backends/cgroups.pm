@@ -349,14 +349,8 @@ sub usable {
 
 	# make sure it is freebsd
 
-	if ( $^O !~ 'freebsd' ) {
-		die '$^O is "' . $^O . '" and not "freebsd"';
-	}
-
-	# make sure we can locate jls
-	my $cmd_bin = `/bin/sh -c 'which jls 2> /dev/null'`;
-	if ( $? != 0 ) {
-		die 'The command "jls" is not in the path... ' . $ENV{PATH};
+	if ( $^O !~ 'linux' ) {
+		die '$^O is "' . $^O . '" and not "linux"';
 	}
 
 	return 1;

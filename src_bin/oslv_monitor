@@ -27,7 +27,7 @@ The backend to use.
 Defaults are as below.
 
     FreeBSD: FreeBSD
-    Linux: cgroup
+    Linux: cgroups
 
 =head2 -c
 
@@ -64,18 +64,12 @@ cgroups - Default on Linux
 ';
 } ## end sub help
 
-my $backend;
-if ( $^O eq 'freebsd' ) {
-	$backend = 'FreeBSD';
-} elsif ( $^O eq 'linux' ) {
-	$backend = 'cgroups';
-}
-
 # get the commandline options
 my $help     = 0;
 my $version  = 0;
 my $base_dir = '/var/cache/oslv_monitor';
 my $quiet;
+my $backend;
 Getopt::Long::Configure('no_ignore_case');
 Getopt::Long::Configure('bundling');
 GetOptions(

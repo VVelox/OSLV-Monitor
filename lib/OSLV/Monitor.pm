@@ -38,8 +38,10 @@ One option is taken and that is a hash ref.
 
 The keys are list as below.
 
-    - backend :: The name of the backend to use.
-        Default :: CBSD
+    - backend :: The name of the backend to use. If undef, it is choosen based on $^O
+
+    freebsd :: FreeBSD
+    linux :: cgroups
 
 =cut
 
