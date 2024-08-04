@@ -292,9 +292,6 @@ sub run {
 				}
 			}
 		};
-		if ($@) {
-			push( @{ $data->{errors} }, 'Error processing ' . $base_dir . '/cpu.stat ... ' . $@ );
-		}
 
 		eval {
 			my $memory_stats_raw   = read_file( $base_dir . '/memory.stat' );
@@ -307,9 +304,6 @@ sub run {
 				}
 			}
 		};
-		if ($@) {
-			push( @{ $data->{errors} }, 'Error processing ' . $base_dir . '/memory.stat ... ' . $@ );
-		}
 
 		eval {
 			my $io_stats_raw   = read_file( $base_dir . '/io.stat' );
@@ -326,9 +320,6 @@ sub run {
 				}
 			} ## end foreach my $line (@io_stats_split)
 		};
-		if ($@) {
-			push( @{ $data->{errors} }, 'Error processing ' . $base_dir . '/io.stat ... ' . $@ );
-		}
 	} ## end foreach my $cgroup ( keys( %{ $self->{mappings}...}))
 
 	return $data;
@@ -376,7 +367,7 @@ sub cgroup_mapping {
 
 	if ( $cgroup_name =~ /^0\:\:\/system\.slice\// ) {
 		$cgroup_name =~ s/^.*\///;
-		$cgroup_name =~ s/\.serverice$//;
+		$cgroup_name =~ s/\.service$//;
 		return 's_' . $cgroup_name;
 	} elsif ( $cgroup_name =~ /^0\:\:\/user\.slice\// ) {
 		$cgroup_name =~ s/^0\:\:\/user\.slice\///;
