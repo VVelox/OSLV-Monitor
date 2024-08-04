@@ -19,10 +19,9 @@ my %WriteMakefileArgs = (
 		'Test::More' => '0',
 	},
 	PREREQ_PM => {
-		'Module::List' => '0.004',
+		'Clone' => '0',
 		'JSON'         => '2.97.001',
 		'MIME::Base64' => '3.16',
-		'Gzip::Faster' => '0.21',
 	},
 	dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 	clean => { FILES    => 'OSLV-Monitor-*' },

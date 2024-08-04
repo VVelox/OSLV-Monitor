@@ -3,7 +3,6 @@ package OSLV::Monitor;
 use 5.006;
 use strict;
 use warnings;
-use Module::List qw(list_modules);
 
 =head1 NAME
 
