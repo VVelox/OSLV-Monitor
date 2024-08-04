@@ -45,7 +45,7 @@ sub new {
 	my $self = {
 		version         => 1,
 		cgroupns_usable => 1,
-		mapping         => {},
+		mappings        => {},
 		podman_mapping  => {},
 	};
 	bless $self;
@@ -225,9 +225,9 @@ sub run {
 						Networks => $pod->{Networks},
 					};
 					if ( $self->{podman_mapping}{ $pod->{Id} }{podname} ne '' ) {
-						$self->{podman_mapping}{ $pod->{Id} }{name} = $self->{podman_mapping}{ $pod->{Id} }{podname} . '-'
-							. $pod->{Names}[0];
-					}else {
+						$self->{podman_mapping}{ $pod->{Id} }{name}
+							= $self->{podman_mapping}{ $pod->{Id} }{podname} . '-' . $pod->{Names}[0];
+					} else {
 						$self->{podman_mapping}{ $pod->{Id} }{name} = $pod->{Names}[0];
 					}
 				} ## end if ( defined( $pod->{Id} ) && defined( $pod...))
@@ -243,92 +243,92 @@ sub run {
 		$self->{cgroupns_usable} = 0;
 		$ps_output = `ps -haxo pid,cgroup 2> /dev/null`;
 	}
-	my @ps_output_split=split(/\n/, $ps_output);
+	my @ps_output_split = split( /\n/, $ps_output );
 	my %found_cgroups;
 	foreach my $line (@ps_output_split) {
-		my ($cgroupns, $pid, $cgroup);
-		if ($self->{cgroupns_usable}) {
-			($cgroupns, $pid, $cgroup) = split(/\s+/, $line);
-		}else {
-			($pid, $cgroup) = split(/\s+/, $line);
+		my ( $cgroupns, $pid, $cgroup );
+		if ( $self->{cgroupns_usable} ) {
+			( $cgroupns, $pid, $cgroup ) = split( /\s+/, $line );
+		} else {
+			( $pid, $cgroup ) = split( /\s+/, $line );
 		}
-		if ($cgroup =~ /^0\:\:\//) {
-			$found_cgroups{$cgroup}=$cgroupns;
+		if ( $cgroup =~ /^0\:\:\// ) {
+			$found_cgroups{$cgroup} = $cgroupns;
 		}
-	}
+	} ## end foreach my $line (@ps_output_split)
 
 	#
 	# build a list of mappings
 	#
-	foreach my $cgroup (keys(%found_cgroups)) {
+	foreach my $cgroup ( keys(%found_cgroups) ) {
 		my $cgroupns = $found_cgroups{$cgroup};
-		my $map_to=$self->cgroup_mapping($cgroup, $cgroupns);
-		if (defined($map_to)) {
-			$self->{mapping}{$cgroup}=$map_to;
+		my $map_to   = $self->cgroup_mapping( $cgroup, $cgroupns );
+		if ( defined($map_to) ) {
+			$self->{mappings}{$cgroup} = $map_to;
 		}
 	}
 
 	#
 	# get the stats
 	#
-	foreach my $cgroup (keys(%{ $self->{mappings} })) {
-		my $name= $self->{mappings}{$cgroup};
+	foreach my $cgroup ( keys( %{ $self->{mappings} } ) ) {
+		my $name = $self->{mappings}{$cgroup};
 
-		$data->{oslvms}{$name}=clone($base_stats);
+		$data->{oslvms}{$name} = clone($base_stats);
 
-		my $base_dir=$cgroup;
-		$base_dir=~s/^0\:\://;
-		$base_dir='/sys/fs/cgroup'.$base_dir;
+		my $base_dir = $cgroup;
+		$base_dir =~ s/^0\:\://;
+		$base_dir = '/sys/fs/cgroup' . $base_dir;
 
-		eval{
-			my $cpu_stats_raw=read_file($base_dir.'/cpu.stat');
-			my @cpu_stats_split=split(/\n/, $cpu_stats_raw);
+		eval {
+			my $cpu_stats_raw   = read_file( $base_dir . '/cpu.stat' );
+			my @cpu_stats_split = split( /\n/, $cpu_stats_raw );
 			foreach my $line (@cpu_stats_split) {
-				my ($stat, $value)=split(/\s+/, $line, 2);
-				if (defined( $data->{oslvms}{$name}{$stat}) && defined($value) && $value=~/[0-9\.]+/) {
+				my ( $stat, $value ) = split( /\s+/, $line, 2 );
+				if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
 					$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 					$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 				}
 			}
 		};
 		if ($@) {
-			push(@{$data->{errors}}, 'Error processing '.$base_dir.'/cpu.stat ... '.$@);
+			push( @{ $data->{errors} }, 'Error processing ' . $base_dir . '/cpu.stat ... ' . $@ );
 		}
 
-		eval{
-			my $memory_stats_raw=read_file($base_dir.'/memory.stat');
-			my @memory_stats_split=split(/\n/, $memory_stats_raw);
+		eval {
+			my $memory_stats_raw   = read_file( $base_dir . '/memory.stat' );
+			my @memory_stats_split = split( /\n/, $memory_stats_raw );
 			foreach my $line (@memory_stats_split) {
-				my ($stat, $value)=split(/\s+/, $line, 2);
-				if (defined( $data->{oslvms}{$name}{$stat}) && defined($value) && $value=~/[0-9\.]+/) {
+				my ( $stat, $value ) = split( /\s+/, $line, 2 );
+				if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
 					$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 					$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 				}
 			}
 		};
 		if ($@) {
-			push(@{$data->{errors}}, 'Error processing '.$base_dir.'/memory.stat ... '.$@);
+			push( @{ $data->{errors} }, 'Error processing ' . $base_dir . '/memory.stat ... ' . $@ );
 		}
 
-		eval{
-			my $io_stats_raw=read_file($base_dir.'/io.stat');
-			my @io_stats_split=split(/\n/, $io_stats_raw);
+		eval {
+			my $io_stats_raw   = read_file( $base_dir . '/io.stat' );
+			my @io_stats_split = split( /\n/, $io_stats_raw );
 			foreach my $line (@io_stats_split) {
-				my @line_split=split(/\s/, $line);
+				my @line_split = split( /\s/, $line );
 				shift(@line_split);
 				foreach my $item (@line_split) {
-					my ($stat, $value)=split(/\=/, $line, 2);
-					if (defined( $data->{oslvms}{$name}{$stat}) && defined($value) && $value=~/[0-9]+/) {
+					my ( $stat, $value ) = split( /\=/, $line, 2 );
+					if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9]+/ ) {
 						$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 						$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 					}
 				}
-			}
+			} ## end foreach my $line (@io_stats_split)
 		};
 		if ($@) {
-			push(@{$data->{errors}}, 'Error processing '.$base_dir.'/io.stat ... '.$@);
+			push( @{ $data->{errors} }, 'Error processing ' . $base_dir . '/io.stat ... ' . $@ );
 		}
-	}
+	} ## end foreach my $cgroup ( keys( %{ $self->{mappings}...}))
 
 	return $data;
 } ## end sub run
@@ -376,16 +376,16 @@ sub cgroup_mapping {
 	if ( $cgroup_name =~ /^0\:\:\/system\.slice\// ) {
 		$cgroup_name =~ s/^.*\///;
 		$cgroup_name =~ s/\.serverice$//;
-		return 's_'.$cgroup_name;
+		return 's_' . $cgroup_name;
 	} elsif ( $cgroup_name =~ /^0\:\:\/user\.slice\// ) {
 		$cgroup_name =~ s/^0\:\:\/user\.slice\///;
 		$cgroup_name =~ s/\.slice.*$//;
-		return 'u_'.$cgroup_name;
-	} elsif ($cgroup_name =~ /^0\:\:\/machine\.slice\/libpod\-/) {
+		return 'u_' . $cgroup_name;
+	} elsif ( $cgroup_name =~ /^0\:\:\/machine\.slice\/libpod\-/ ) {
 		$cgroup_name =~ s/^^0\:\:\/machine\.slice\/libpod\-//;
 		$cgroup_name =~ s/\.scope.*$//;
-		if (defined($self->{podman_mapping}{$cgroup_name})) {
-			return 'p_'.$self->{podman_mapping}{$cgroup_name}{name};
+		if ( defined( $self->{podman_mapping}{$cgroup_name} ) ) {
+			return 'p_' . $self->{podman_mapping}{$cgroup_name}{name};
 		}
 		return 'libpod';
 	}
