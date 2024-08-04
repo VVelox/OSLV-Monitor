@@ -69,8 +69,8 @@ sub run {
 		oslvms => {},
 		totals => {
 			procs                        => 0,
-			percpu                       => 0,
-			permem                       => 0,
+			cpu_usage_per                => 0,
+			mem_usage_per                => 0,
 			rbytes                       => 0,
 			wbytes                       => 0,
 			rios                         => 0,
@@ -144,8 +144,8 @@ sub run {
 
 	my $base_stats = {
 		procs                        => 0,
-		percpu                       => 0,
-		permem                       => 0,
+		cpu_usage_per                => 0,
+		mem_usage_per                => 0,
 		rbytes                       => 0,
 		wbytes                       => 0,
 		rios                         => 0,
@@ -246,7 +246,7 @@ sub run {
 	#
 	my $docker_output = `docker ps --format '{{.ID}},{{.Names}}' 2> /dev/null`;
 	if ( $? == 0 ) {
-		my @docker_output_split = split($docker_output);
+		my @docker_output_split = split( /\n/, $docker_output );
 		foreach my $line (@docker_output_split) {
 			my ( $container_id, $container_name ) = split( /,/, $line );
 			if ( defined($container_id) && defined($container_name) ) {
@@ -307,8 +307,8 @@ sub run {
 
 		$data->{oslvms}{$name} = clone($base_stats);
 
-		$data->{oslvms}{$name}{percpu} = $cgroups_percpu{$cgroup};
-		$data->{oslvms}{$name}{permem} = $cgroups_permem{$cgroup};
+		$data->{oslvms}{$name}{cpu_usage_per} = $cgroups_percpu{$cgroup};
+		$data->{oslvms}{$name}{mem_usage_per} = $cgroups_permem{$cgroup};
 
 		my $base_dir = $cgroup;
 		$base_dir =~ s/^0\:\://;
