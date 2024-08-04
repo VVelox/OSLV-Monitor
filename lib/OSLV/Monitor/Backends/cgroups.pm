@@ -69,6 +69,8 @@ sub run {
 		oslvms => {},
 		totals => {
 			procs                        => 0,
+			percpu                       => 0,
+			permem                       => 0,
 			rbytes                       => 0,
 			wbytes                       => 0,
 			rios                         => 0,
@@ -142,6 +144,8 @@ sub run {
 
 	my $base_stats = {
 		procs                        => 0,
+		percpu                       => 0,
+		permem                       => 0,
 		rbytes                       => 0,
 		wbytes                       => 0,
 		rios                         => 0,
@@ -254,23 +258,34 @@ sub run {
 	#
 	# gets of procs for finding a list of containers
 	#
-	my $ps_output = `ps -haxo cgroupns,pid,cgroup 2> /dev/null`;
+	my $ps_output = `ps -haxo cgroupns,%cpu,%mem,cgroup 2> /dev/null`;
 	if ( $? != 0 ) {
 		$self->{cgroupns_usable} = 0;
-		$ps_output = `ps -haxo pid,cgroup 2> /dev/null`;
+		$ps_output = `ps -haxo %cpu,%mem,cgroup 2> /dev/null`;
 	}
 	my @ps_output_split = split( /\n/, $ps_output );
 	my %found_cgroups;
+	my %cgroups_percpu;
+	my %cgroups_permem;
 	foreach my $line (@ps_output_split) {
-		my ( $cgroupns, $pid, $cgroup );
+		my ( $cgroupns, $percpu, $permem, $cgroup );
 		if ( $self->{cgroupns_usable} ) {
-			( $cgroupns, $pid, $cgroup ) = split( /\s+/, $line );
+			( $cgroupns, $percpu, $permem, $cgroup ) = split( /\s+/, $line );
 		} else {
-			( $pid, $cgroup ) = split( /\s+/, $line );
+			( $percpu, $permem, $cgroup ) = split( /\s+/, $line );
 		}
 		if ( $cgroup =~ /^0\:\:\// ) {
 			$found_cgroups{$cgroup} = $cgroupns;
-		}
+			$data->{totals}{percpu} = $data->{totals}{percpu} + $percpu;
+			$data->{totals}{permem} = $data->{totals}{permem} + $permem;
+			if ( !defined( $cgroups_permem{$cgroup} ) ) {
+				$cgroups_permem{$cgroup} = $permem;
+				$cgroups_percpu{$cgroup} = $percpu;
+			} else {
+				$cgroups_permem{$cgroup} = $cgroups_permem{$cgroup} + $permem;
+				$cgroups_percpu{$cgroup} = $cgroups_percpu{$cgroup} + $percpu;
+			}
+		} ## end if ( $cgroup =~ /^0\:\:\// )
 	} ## end foreach my $line (@ps_output_split)
 
 	#
@@ -291,6 +306,9 @@ sub run {
 		my $name = $self->{mappings}{$cgroup};
 
 		$data->{oslvms}{$name} = clone($base_stats);
+
+		$data->{oslvms}{$name}{percpu} = $cgroups_percpu{$cgroup};
+		$data->{oslvms}{$name}{permem} = $cgroups_permem{$cgroup};
 
 		my $base_dir = $cgroup;
 		$base_dir =~ s/^0\:\://;
