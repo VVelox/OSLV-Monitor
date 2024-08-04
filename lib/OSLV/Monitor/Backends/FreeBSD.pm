@@ -206,7 +206,6 @@ sub run {
 		'user-time'                    => 1,
 		'read-blocks'                  => 1,
 		'major-faults'                 => 1,
-		'elapsed-times'                => 1,
 		'involuntary-context-switches' => 1,
 		'minor-faults'                 => 1,
 		'received-messages'            => 1,
@@ -263,13 +262,15 @@ sub run {
 					} ## end if ( defined( $times->{$stat} ) )
 
 					if ( $counters->{$stat} ) {
+						my $stat_value;
 						if ( defined( $proc_cache->{$cache_name} ) && defined( $proc_cache->{$cache_name}{$stat} ) ) {
-							my $new_value = $proc->{$stat} - $proc_cache->{$cache_name}{$stat};
+							$stat_value = ( $proc->{$stat} - $proc_cache->{$cache_name}{$stat} ) / 300;
 						} else {
-							$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
-								= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $proc->{$stat};
-							$data->{totals}{$stat} = $data->{totals}{$stat} + $proc->{$stat};
+							$stat_value = $proc->{$stat} / 300;
 						}
+						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
+							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $stat_value;
+						$data->{totals}{$stat} = $data->{totals}{$stat} + $stat_value;
 					} else {
 						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
 							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $proc->{$stat};
