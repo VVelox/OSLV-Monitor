@@ -373,6 +373,8 @@ sub cgroup_mapping {
 		$cgroup_name =~ s/^0\:\:\/user\.slice\///;
 		$cgroup_name =~ s/\.slice.*$//;
 		return 'u_' . $cgroup_name;
+	} elsif ( $cgroup_name =~ /^0\:\:\/machine\.slice\/libpod\-conmon-/ ) {
+		return 'libpod-conmon';
 	} elsif ( $cgroup_name =~ /^0\:\:\/machine\.slice\/libpod\-/ ) {
 		$cgroup_name =~ s/^^0\:\:\/machine\.slice\/libpod\-//;
 		$cgroup_name =~ s/\.scope.*$//;
