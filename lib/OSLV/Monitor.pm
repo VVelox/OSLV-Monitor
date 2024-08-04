@@ -144,7 +144,7 @@ sub run {
 	return {
 		version     => $self->{version},
 		data        => $to_return_data,
-		error       => undef,
+		error       => 0,
 		errorString => ''
 	};
 } ## end sub run
