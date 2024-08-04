@@ -213,7 +213,7 @@ sub run {
 	#
 	# get podman ID to name mappings
 	#
-	my $podman_output = `podman ps --format json 2> /dev/null > /dev/null`;
+	my $podman_output = `podman ps --format json 2> /dev/null`;
 	if ( $? == 0 ) {
 		my $podman_parsed;
 		eval { $podman_parsed = decode_json($podman_output); };
