@@ -68,7 +68,7 @@ my $backend;
 if ( $^O eq 'freebsd' ) {
 	$backend = 'FreeBSD';
 } elsif ( $^O eq 'linux' ) {
-	$backend = 'cgroup';
+	$backend = 'cgroups';
 }
 
 # get the commandline options

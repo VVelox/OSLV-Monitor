@@ -51,7 +51,7 @@ sub new {
 		if ( $^O eq 'freebsd' ) {
 			$opts{backend} = 'FreeBSD';
 		} elsif ( $^O eq 'linux' ) {
-			$opts{backend} = 'cgroup';
+			$opts{backend} = 'cgroups';
 		}
 	}
 
