@@ -276,8 +276,8 @@ sub run {
 		}
 		if ( $cgroup =~ /^0\:\:\// ) {
 			$found_cgroups{$cgroup} = $cgroupns;
-			$data->{totals}{percpu} = $data->{totals}{percpu} + $percpu;
-			$data->{totals}{permem} = $data->{totals}{permem} + $permem;
+			$data->{totals}{cpu_usage_per} = $data->{totals}{cpu_usage_per} + $percpu;
+			$data->{totals}{mem_usage_per} = $data->{totals}{mem_usage_per} + $permem;
 			if ( !defined( $cgroups_permem{$cgroup} ) ) {
 				$cgroups_permem{$cgroup} = $permem;
 				$cgroups_percpu{$cgroup} = $percpu;
