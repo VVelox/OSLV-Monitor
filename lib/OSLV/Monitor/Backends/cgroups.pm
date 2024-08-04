@@ -282,47 +282,53 @@ sub run {
 		$base_dir = '/sys/fs/cgroup' . $base_dir;
 
 		my $cpu_stats_raw;
-		eval { $cpu_stats_raw = read_file( $base_dir . '/cpu.stat' ); };
-		if ( defined($cpu_stats_raw) ) {
-			my @cpu_stats_split = split( /\n/, $cpu_stats_raw );
-			foreach my $line (@cpu_stats_split) {
-				my ( $stat, $value ) = split( /\s+/, $line, 2 );
-				if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
-					$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
-					$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
-				}
-			}
-		} ## end if ( defined($cpu_stats_raw) )
-
-		my $memory_stats_raw;
-		eval { $memory_stats_raw = read_file( $base_dir . '/memory.stat' ); };
-		if ( defined($memory_stats_raw) ) {
-			my @memory_stats_split = split( /\n/, $memory_stats_raw );
-			foreach my $line (@memory_stats_split) {
-				my ( $stat, $value ) = split( /\s+/, $line, 2 );
-				if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
-					$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
-					$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
-				}
-			}
-		} ## end if ( defined($memory_stats_raw) )
-
-		my $io_stats_raw;
-		eval { $io_stats_raw = read_file( $base_dir . '/io.stat' ); };
-		if ( defined($io_stats_raw) ) {
-			my @io_stats_split = split( /\n/, $io_stats_raw );
-			foreach my $line (@io_stats_split) {
-				my @line_split = split( /\s/, $line );
-				shift(@line_split);
-				foreach my $item (@line_split) {
-					my ( $stat, $value ) = split( /\=/, $line, 2 );
-					if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9]+/ ) {
+		if ( -f $base_dir . '/cpu.stat' && -r $base_dir . '/cpu.stat' ) {
+			eval { $cpu_stats_raw = read_file( $base_dir . '/cpu.stat' ); };
+			if ( defined($cpu_stats_raw) ) {
+				my @cpu_stats_split = split( /\n/, $cpu_stats_raw );
+				foreach my $line (@cpu_stats_split) {
+					my ( $stat, $value ) = split( /\s+/, $line, 2 );
+					if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
 						$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 						$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 					}
 				}
-			} ## end foreach my $line (@io_stats_split)
-		} ## end if ( defined($io_stats_raw) )
+			} ## end if ( defined($cpu_stats_raw) )
+		} ## end if ( -f $base_dir . '/cpu.stat' && -r $base_dir...)
+
+		my $memory_stats_raw;
+		if ( -f $base_dir . '/memory.stat' && -r $base_dir . '/memory.stat' ) {
+			eval { $memory_stats_raw = read_file( $base_dir . '/memory.stat' ); };
+			if ( defined($memory_stats_raw) ) {
+				my @memory_stats_split = split( /\n/, $memory_stats_raw );
+				foreach my $line (@memory_stats_split) {
+					my ( $stat, $value ) = split( /\s+/, $line, 2 );
+					if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
+						$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
+						$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
+					}
+				}
+			} ## end if ( defined($memory_stats_raw) )
+		} ## end if ( -f $base_dir . '/memory.stat' && -r $base_dir...)
+
+		my $io_stats_raw;
+		if ( -f $base_dir . '/io.stat' && -r $base_dir . '/io.stat' ) {
+			eval { $io_stats_raw = read_file( $base_dir . '/io.stat' ); };
+			if ( defined($io_stats_raw) ) {
+				my @io_stats_split = split( /\n/, $io_stats_raw );
+				foreach my $line (@io_stats_split) {
+					my @line_split = split( /\s/, $line );
+					shift(@line_split);
+					foreach my $item (@line_split) {
+						my ( $stat, $value ) = split( /\=/, $line, 2 );
+						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9]+/ ) {
+							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
+							$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
+						}
+					}
+				} ## end foreach my $line (@io_stats_split)
+			} ## end if ( defined($io_stats_raw) )
+		} ## end if ( -f $base_dir . '/io.stat' && -r $base_dir...)
 	} ## end foreach my $cgroup ( keys( %{ $self->{mappings}...}))
 
 	return $data;
