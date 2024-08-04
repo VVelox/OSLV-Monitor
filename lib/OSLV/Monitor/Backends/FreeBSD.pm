@@ -245,6 +245,7 @@ sub run {
 						# [days-][hours:]minutes:seconds
 						my $seconds = 0;
 						my $time    = $proc->{$stat};
+
 						if ( $time =~ /-/ ) {
 							my $days = $time;
 							$days =~ s/\-.*$//;
