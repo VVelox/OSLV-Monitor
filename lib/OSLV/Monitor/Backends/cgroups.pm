@@ -267,6 +267,7 @@ sub run {
 	my %found_cgroups;
 	my %cgroups_percpu;
 	my %cgroups_permem;
+	my %cgroups_procs;
 	foreach my $line (@ps_output_split) {
 		$line =~ s/^\s+//;
 		my ( $cgroupns, $percpu, $permem, $cgroup );
@@ -276,15 +277,17 @@ sub run {
 			( $percpu, $permem, $cgroup ) = split( /\s+/, $line );
 		}
 		if ( $cgroup =~ /^0\:\:\// ) {
-			$found_cgroups{$cgroup} = $cgroupns;
+			$found_cgroups{$cgroup}        = $cgroupns;
 			$data->{totals}{cpu_usage_per} = $data->{totals}{cpu_usage_per} + $percpu;
 			$data->{totals}{mem_usage_per} = $data->{totals}{mem_usage_per} + $permem;
 			if ( !defined( $cgroups_permem{$cgroup} ) ) {
 				$cgroups_permem{$cgroup} = $permem;
 				$cgroups_percpu{$cgroup} = $percpu;
+				$cgroups_procs{$cgroup}  = 1;
 			} else {
 				$cgroups_permem{$cgroup} = $cgroups_permem{$cgroup} + $permem;
 				$cgroups_percpu{$cgroup} = $cgroups_percpu{$cgroup} + $percpu;
+				$cgroups_procs{$cgroup}++;
 			}
 		} ## end if ( $cgroup =~ /^0\:\:\// )
 	} ## end foreach my $line (@ps_output_split)
@@ -310,6 +313,8 @@ sub run {
 
 		$data->{oslvms}{$name}{cpu_usage_per} = $cgroups_percpu{$cgroup};
 		$data->{oslvms}{$name}{mem_usage_per} = $cgroups_permem{$cgroup};
+		$data->{oslvms}{$name}{procs}         = $cgroups_procs{$cgroup};
+		$data->{totals}{procs}                = $data->{totals}{procs} + $cgroups_procs{$cgroup};
 
 		my $base_dir = $cgroup;
 		$base_dir =~ s/^0\:\://;

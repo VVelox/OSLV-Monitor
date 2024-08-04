@@ -57,19 +57,19 @@ sub new {
 		}
 	}
 
-	if (!defined($opts{base_dir})) {
-		$opts{base_dir}='/var/cache/oslv_monitor';
+	if ( !defined( $opts{base_dir} ) ) {
+		$opts{base_dir} = '/var/cache/oslv_monitor';
 	}
 
 	my $self = {
-				version => 1,
-				backend => $opts{backend},
-				base_dir => $opts{base_dir},
-				};
+		version  => 1,
+		backend  => $opts{backend},
+		base_dir => $opts{base_dir},
+	};
 	bless $self;
 
 	return $self;
-}
+} ## end sub new
 
 =head2 load
 
@@ -98,13 +98,12 @@ $usable=$backend_test->usable;
 	if ($usable) {
 		$self->{backend_mod} = $backend_test;
 		$loaded = 1;
-	}
-	else {
+	} else {
 		die( 'Failed to load backend... ' . $@ );
 	}
 
 	return $loaded;
-}
+} ## end sub load
 
 =head2 run
 
@@ -132,7 +131,7 @@ sub run {
 	#	eval { $to_return_data = $self->{backend_mod}->run };
 	$to_return_data = $self->{backend_mod}->run;
 	if ($@) {
-	return {
+		return {
 			version     => $self->{version},
 			data        => {},
 			error       => 1,
@@ -140,13 +139,15 @@ sub run {
 		};
 	}
 
+	$to_return_data->{backend} = $self->{backend};
+
 	return {
-			version     => $self->{version},
-			data        => $to_return_data,
-			error       => undef,
-			errorString => ''
-			};
-}
+		version     => $self->{version},
+		data        => $to_return_data,
+		error       => undef,
+		errorString => ''
+	};
+} ## end sub run
 
 =head1 AUTHOR
 
