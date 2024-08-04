@@ -281,8 +281,9 @@ sub run {
 		$base_dir =~ s/^0\:\://;
 		$base_dir = '/sys/fs/cgroup' . $base_dir;
 
-		eval {
-			my $cpu_stats_raw   = read_file( $base_dir . '/cpu.stat' );
+		my $cpu_stats_raw;
+		eval { $cpu_stats_raw = read_file( $base_dir . '/cpu.stat' ); };
+		if ( defined($cpu_stats_raw) ) {
 			my @cpu_stats_split = split( /\n/, $cpu_stats_raw );
 			foreach my $line (@cpu_stats_split) {
 				my ( $stat, $value ) = split( /\s+/, $line, 2 );
@@ -291,10 +292,11 @@ sub run {
 					$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 				}
 			}
-		};
+		} ## end if ( defined($cpu_stats_raw) )
 
-		eval {
-			my $memory_stats_raw   = read_file( $base_dir . '/memory.stat' );
+		my $memory_stats_raw;
+		eval { $memory_stats_raw = read_file( $base_dir . '/memory.stat' ); };
+		if ( defined($memory_stats_raw) ) {
 			my @memory_stats_split = split( /\n/, $memory_stats_raw );
 			foreach my $line (@memory_stats_split) {
 				my ( $stat, $value ) = split( /\s+/, $line, 2 );
@@ -303,10 +305,11 @@ sub run {
 					$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 				}
 			}
-		};
+		} ## end if ( defined($memory_stats_raw) )
 
-		eval {
-			my $io_stats_raw   = read_file( $base_dir . '/io.stat' );
+		my $io_stats_raw;
+		eval { $io_stats_raw = read_file( $base_dir . '/io.stat' ); };
+		if ( defined($io_stats_raw) ) {
 			my @io_stats_split = split( /\n/, $io_stats_raw );
 			foreach my $line (@io_stats_split) {
 				my @line_split = split( /\s/, $line );
@@ -319,7 +322,7 @@ sub run {
 					}
 				}
 			} ## end foreach my $line (@io_stats_split)
-		};
+		} ## end if ( defined($io_stats_raw) )
 	} ## end foreach my $cgroup ( keys( %{ $self->{mappings}...}))
 
 	return $data;
