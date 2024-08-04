@@ -268,6 +268,7 @@ sub run {
 	my %cgroups_percpu;
 	my %cgroups_permem;
 	foreach my $line (@ps_output_split) {
+		$line =~ s/^\s+//;
 		my ( $cgroupns, $percpu, $permem, $cgroup );
 		if ( $self->{cgroupns_usable} ) {
 			( $cgroupns, $percpu, $permem, $cgroup ) = split( /\s+/, $line );
