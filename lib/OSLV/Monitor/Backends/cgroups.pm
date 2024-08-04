@@ -48,6 +48,7 @@ sub new {
 		cgroupns_usable => 1,
 		mappings        => {},
 		podman_mapping  => {},
+		docker_mapping  => {},
 	};
 	bless $self;
 
@@ -237,6 +238,20 @@ sub run {
 	} ## end if ( $? == 0 )
 
 	#
+	# get docker ID to name mappings
+	#
+	my $docker_output = `docker ps --format '{{.ID}},{{.Names}}' 2> /dev/null`;
+	if ( $? == 0 ) {
+		my @docker_output_split = split($docker_output);
+		foreach my $line (@docker_output_split) {
+			my ( $container_id, $container_name ) = split( /,/, $line );
+			if ( defined($container_id) && defined($container_name) ) {
+				$self->{docker_mapping}{$container_id} = $container_name;
+			}
+		}
+	}
+
+	#
 	# gets of procs for finding a list of containers
 	#
 	my $ps_output = `ps -haxo cgroupns,pid,cgroup 2> /dev/null`;
@@ -374,7 +389,15 @@ sub cgroup_mapping {
 		return 'init';
 	}
 
-	if ( $cgroup_name =~ /^0\:\:\/system\.slice\// ) {
+	if ( $cgroup_name =~ /^0\:\:\/system\.slice\/docker\-[a-zA-Z0-9]+\.scope/ ) {
+		$cgroup_name =~ s/^0\:\:\/system\.slice\/docker\-//;
+		$cgroup_name =~ s/\.scope.*$//;
+		return 'd_' . $cgroup_name;
+	} elsif ( $cgroup_name =~ /^0\:\:\/docker\// ) {
+		$cgroup_name =~ s/^0\:\:\/docker\///;
+		$cgroup_name =~ s/\/.*$//;
+		return 'd_' . $cgroup_name;
+	} elsif ( $cgroup_name =~ /^0\:\:\/system\.slice\// ) {
 		$cgroup_name =~ s/^.*\///;
 		$cgroup_name =~ s/\.service$//;
 		return 's_' . $cgroup_name;
