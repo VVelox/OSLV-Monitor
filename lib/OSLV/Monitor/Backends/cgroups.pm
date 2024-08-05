@@ -141,7 +141,6 @@ sub run {
 			thp_collapse_alloc           => 0,
 			rss                          => 0,
 			'data-size'                  => 0,
-			'stack-size'                 => 0,
 			'text-size'                  => 0,
 			'size'                       => 0,
 			'virtual-size'               => 0,
@@ -222,7 +221,6 @@ sub run {
 		thp_collapse_alloc           => 0,
 		rss                          => 0,
 		'data-size'                  => 0,
-		'stack-size'                 => 0,
 		'text-size'                  => 0,
 		'size'                       => 0,
 		'virtual-size'               => 0,
@@ -285,7 +283,6 @@ sub run {
 	my %cgroups_trs;
 	my %cgroups_drs;
 	my %cgroups_size;
-	my %cgroups_stacksize;
 
 	foreach my $line (@ps_output_split) {
 		$line =~ s/^\s+//;
@@ -304,7 +301,6 @@ sub run {
 			$data->{totals}{'text-size'}    = $data->{totals}{'text-size'} + $trs;
 			$data->{totals}{'data-size'}    = $data->{totals}{'data-size'} + $drs;
 			$data->{totals}{'size'}         = $data->{totals}{'size'} + $size;
-			$data->{totals}{'stack-size'}   = $data->{totals}{'stack-size'} + ( $size - $trs - $drs );
 
 			if ( !defined( $cgroups_permem{$cgroup} ) ) {
 				$cgroups_permem{$cgroup}    = $permem;
@@ -315,7 +311,6 @@ sub run {
 				$cgroups_trs{$cgroup}       = $trs;
 				$cgroups_drs{$cgroup}       = $drs;
 				$cgroups_size{$cgroup}      = $size;
-				$cgroups_stacksize{$cgroup} = $size - $trs - $drs;
 			} else {
 				$cgroups_permem{$cgroup} = $cgroups_permem{$cgroup} + $permem;
 				$cgroups_percpu{$cgroup} = $cgroups_percpu{$cgroup} + $percpu;
@@ -325,7 +320,6 @@ sub run {
 				$cgroups_trs{$cgroup}       = $cgroups_trs{$cgroup} + $trs;
 				$cgroups_drs{$cgroup}       = $cgroups_drs{$cgroup} + $drs;
 				$cgroups_size{$cgroup}      = $cgroups_size{$cgroup} + $size;
-				$cgroups_stacksize{$cgroup} = $cgroups_stacksize{$cgroup} + ( $size - $trs - $drs );
 			} ## end else [ if ( !defined( $cgroups_permem{$cgroup} ) )]
 		} ## end if ( $cgroup =~ /^0\:\:\// )
 	} ## end foreach my $line (@ps_output_split)
@@ -358,7 +352,6 @@ sub run {
 		$data->{oslvms}{$name}{'text-size'}    = $cgroups_trs{$cgroup};
 		$data->{oslvms}{$name}{'data-size'}    = $cgroups_drs{$cgroup};
 		$data->{oslvms}{$name}{'size'}         = $cgroups_size{$cgroup};
-		$data->{oslvms}{$name}{'stack-size'}   = $cgroups_stacksize{$cgroup};
 
 		my $base_dir = $cgroup;
 		$base_dir =~ s/^0\:\://;
