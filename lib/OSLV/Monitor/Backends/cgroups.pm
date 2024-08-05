@@ -139,6 +139,12 @@ sub run {
 			zswpout                      => 0,
 			thp_fault_alloc              => 0,
 			thp_collapse_alloc           => 0,
+			rss                          => 0,
+			'data-size'                  => 0,
+			'stack-size'                 => 0,
+			'text-size'                  => 0,
+			'size'                       => 0,
+			'virtual-size'               => 0,
 		},
 	};
 
@@ -214,6 +220,12 @@ sub run {
 		zswpout                      => 0,
 		thp_fault_alloc              => 0,
 		thp_collapse_alloc           => 0,
+		rss                          => 0,
+		'data-size'                  => 0,
+		'stack-size'                 => 0,
+		'text-size'                  => 0,
+		'size'                       => 0,
+		'virtual-size'               => 0,
 	};
 
 	#
@@ -258,37 +270,63 @@ sub run {
 	#
 	# gets of procs for finding a list of containers
 	#
-	my $ps_output = `ps -haxo cgroupns,%cpu,%mem,cgroup 2> /dev/null`;
+	my $ps_output = `ps -haxo cgroupns,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
 	if ( $? != 0 ) {
 		$self->{cgroupns_usable} = 0;
-		$ps_output = `ps -haxo %cpu,%mem,cgroup 2> /dev/null`;
+		$ps_output = `ps -haxo %cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
 	}
 	my @ps_output_split = split( /\n/, $ps_output );
 	my %found_cgroups;
 	my %cgroups_percpu;
 	my %cgroups_permem;
 	my %cgroups_procs;
+	my %cgroups_rss;
+	my %cgroups_vsize;
+	my %cgroups_trs;
+	my %cgroups_drs;
+	my %cgroups_size;
+	my %cgroups_stacksize;
+
 	foreach my $line (@ps_output_split) {
 		$line =~ s/^\s+//;
-		my ( $cgroupns, $percpu, $permem, $cgroup );
+		my ( $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup );
 		if ( $self->{cgroupns_usable} ) {
-			( $cgroupns, $percpu, $permem, $cgroup ) = split( /\s+/, $line );
+			( $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
 		} else {
-			( $percpu, $permem, $cgroup ) = split( /\s+/, $line );
+			( $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
 		}
 		if ( $cgroup =~ /^0\:\:\// ) {
-			$found_cgroups{$cgroup}        = $cgroupns;
-			$data->{totals}{cpu_usage_per} = $data->{totals}{cpu_usage_per} + $percpu;
-			$data->{totals}{mem_usage_per} = $data->{totals}{mem_usage_per} + $permem;
+			$found_cgroups{$cgroup}         = $cgroupns;
+			$data->{totals}{cpu_usage_per}  = $data->{totals}{cpu_usage_per} + $percpu;
+			$data->{totals}{mem_usage_per}  = $data->{totals}{mem_usage_per} + $permem;
+			$data->{totals}{rss}            = $data->{totals}{rss} + $rss;
+			$data->{totals}{'virtual-size'} = $data->{totals}{'virtual-size'} + $vsize;
+			$data->{totals}{'text-size'}    = $data->{totals}{'text-size'} + $trs;
+			$data->{totals}{'data-size'}    = $data->{totals}{'data-size'} + $drs;
+			$data->{totals}{'size'}         = $data->{totals}{'size'} + $size;
+			$data->{totals}{'stack-size'}   = $data->{totals}{'stack-size'} + ( $size - $trs - $drs );
+
 			if ( !defined( $cgroups_permem{$cgroup} ) ) {
-				$cgroups_permem{$cgroup} = $permem;
-				$cgroups_percpu{$cgroup} = $percpu;
-				$cgroups_procs{$cgroup}  = 1;
+				$cgroups_permem{$cgroup}    = $permem;
+				$cgroups_percpu{$cgroup}    = $percpu;
+				$cgroups_procs{$cgroup}     = 1;
+				$cgroups_rss{$cgroup}       = $rss;
+				$cgroups_vsize{$cgroup}     = $vsize;
+				$cgroups_trs{$cgroup}       = $trs;
+				$cgroups_drs{$cgroup}       = $drs;
+				$cgroups_size{$cgroup}      = $size;
+				$cgroups_stacksize{$cgroup} = $size - $trs - $drs;
 			} else {
 				$cgroups_permem{$cgroup} = $cgroups_permem{$cgroup} + $permem;
 				$cgroups_percpu{$cgroup} = $cgroups_percpu{$cgroup} + $percpu;
 				$cgroups_procs{$cgroup}++;
-			}
+				$cgroups_rss{$cgroup}       = $cgroups_rss{$cgroup} + $rss;
+				$cgroups_vsize{$cgroup}     = $cgroups_vsize{$cgroup} + $vsize;
+				$cgroups_trs{$cgroup}       = $cgroups_trs{$cgroup} + $trs;
+				$cgroups_drs{$cgroup}       = $cgroups_drs{$cgroup} + $drs;
+				$cgroups_size{$cgroup}      = $cgroups_size{$cgroup} + $size;
+				$cgroups_stacksize{$cgroup} = $cgroups_stacksize{$cgroup} + ( $size - $trs - $drs );
+			} ## end else [ if ( !defined( $cgroups_permem{$cgroup} ) )]
 		} ## end if ( $cgroup =~ /^0\:\:\// )
 	} ## end foreach my $line (@ps_output_split)
 
@@ -311,10 +349,16 @@ sub run {
 
 		$data->{oslvms}{$name} = clone($base_stats);
 
-		$data->{oslvms}{$name}{cpu_usage_per} = $cgroups_percpu{$cgroup};
-		$data->{oslvms}{$name}{mem_usage_per} = $cgroups_permem{$cgroup};
-		$data->{oslvms}{$name}{procs}         = $cgroups_procs{$cgroup};
-		$data->{totals}{procs}                = $data->{totals}{procs} + $cgroups_procs{$cgroup};
+		$data->{oslvms}{$name}{cpu_usage_per}  = $cgroups_percpu{$cgroup};
+		$data->{oslvms}{$name}{mem_usage_per}  = $cgroups_permem{$cgroup};
+		$data->{oslvms}{$name}{procs}          = $cgroups_procs{$cgroup};
+		$data->{totals}{procs}                 = $data->{totals}{procs} + $cgroups_procs{$cgroup};
+		$data->{oslvms}{$name}{rss}            = $cgroups_rss{$cgroup};
+		$data->{oslvms}{$name}{'virtual-size'} = $cgroups_vsize{$cgroup};
+		$data->{oslvms}{$name}{'text-size'}    = $cgroups_trs{$cgroup};
+		$data->{oslvms}{$name}{'data-size'}    = $cgroups_drs{$cgroup};
+		$data->{oslvms}{$name}{'size'}         = $cgroups_size{$cgroup};
+		$data->{oslvms}{$name}{'stack-size'}   = $cgroups_stacksize{$cgroup};
 
 		my $base_dir = $cgroup;
 		$base_dir =~ s/^0\:\://;
