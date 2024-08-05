@@ -268,10 +268,10 @@ sub run {
 	#
 	# gets of procs for finding a list of containers
 	#
-	my $ps_output = `ps -haxo cgroupns,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
+	my $ps_output = `ps -haxo pid,cgroupns,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
 	if ( $? != 0 ) {
 		$self->{cgroupns_usable} = 0;
-		$ps_output = `ps -haxo %cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
+		$ps_output = `ps -haxo pid,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
 	}
 	my @ps_output_split = split( /\n/, $ps_output );
 	my %found_cgroups;
@@ -286,11 +286,11 @@ sub run {
 
 	foreach my $line (@ps_output_split) {
 		$line =~ s/^\s+//;
-		my ( $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup );
+		my ( $pid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup );
 		if ( $self->{cgroupns_usable} ) {
-			( $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
+			( $pid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
 		} else {
-			( $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
+			( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
 		}
 		if ( $cgroup =~ /^0\:\:\// ) {
 			$found_cgroups{$cgroup}         = $cgroupns;

@@ -142,9 +142,9 @@ sub run {
 		'written-blocks'               => 0,
 		'procs'                        => 0,
 		'signals-taken'                => 0,
-		'ipv4'                         => undef,
+		'ipv4'                         => [],
 		'path'                         => undef,
-		'ipv6'                         => undef,
+		'ipv6'                         => [],
 	};
 
 	# get a list of jails
@@ -163,13 +163,15 @@ sub run {
 		&& ref( $jls->{'jail-information'}{jail} ) eq 'ARRAY' )
 	{
 		foreach my $jls_jail ( @{ $jls->{'jail-information'}{jail} } ) {
-			$data->{oslvms}{ $jls_jail->{'hostname'} } = clone($base_stats);
+			if (!defined($data->{oslvms}{ $jls_jail->{'hostname'} })) {
+				$data->{oslvms}{ $jls_jail->{'hostname'} } = clone($base_stats);
+			}
 			$data->{oslvms}{ $jls_jail->{'hostname'} }{path} = $jls_jail->{path};
 			if ( defined( $jls_jail->{ipv4} ) && $jls_jail->{ipv4} ne '' ) {
-				$data->{oslvms}{ $jls_jail->{'hostname'} }{ipv4} = $jls_jail->{ipv4};
+				push(@{$data->{oslvms}{ $jls_jail->{'hostname'} }{ipv4}}, $jls_jail->{ipv4});
 			}
 			if ( defined( $jls_jail->{ipv6} ) && $jls_jail->{ipv6} ne '' ) {
-				$data->{oslvms}{ $jls_jail->{'hostname'} }{ipv6} = $jls_jail->{ipv6};
+				push(@{$data->{oslvms}{ $jls_jail->{'hostname'} }{ipv6}}, $jls_jail->{ipv6});
 			}
 		} ## end foreach my $jls_jail ( @{ $jls->{'jail-information'...}})
 	} ## end if ( defined($jls) && ref($jls) eq 'HASH' ...)
