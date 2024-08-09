@@ -48,7 +48,9 @@ sub new {
 		cgroupns_usable => 1,
 		mappings        => {},
 		podman_mapping  => {},
+		podman_info     => {},
 		docker_mapping  => {},
+		docker_info     => {}
 	};
 	bless $self;
 
@@ -144,6 +146,9 @@ sub run {
 			'text-size'                  => 0,
 			'size'                       => 0,
 			'virtual-size'               => 0,
+			'ipv4'                       => [],
+			'path'                       => undef,
+			'ipv6'                       => [],
 		},
 	};
 
@@ -224,6 +229,9 @@ sub run {
 		'text-size'                  => 0,
 		'size'                       => 0,
 		'virtual-size'               => 0,
+		'ipv4'                       => [],
+		'path'                       => undef,
+		'ipv6'                       => [],
 	};
 
 	#
@@ -246,6 +254,51 @@ sub run {
 					} else {
 						$self->{podman_mapping}{ $pod->{Id} }{name} = $pod->{Names}[0];
 					}
+					my $container_id = $pod->{Id};
+					my $inspect_output = `podman inspect $container_id 2> /dev/null`;
+					my $inspect_parsed;
+					$self->{podman_info}{$container_id} = {};
+					eval { $inspect_parsed = decode_json($inspect_output) };
+					if (   defined($inspect_parsed)
+						&& ref($inspect_parsed) eq 'ARRAY'
+						&& defined( $inspect_parsed->[0] )
+						&& ref( $inspect_parsed->[0] ) eq 'HASH'
+						&& defined( $inspect_parsed->[0]{NetworkSettings} )
+						&& ref( $inspect_parsed->[0]{NetworkSettings} ) eq 'HASH'
+						&& defined( $inspect_parsed->[0]{NetworkSettings}{IPAddress} )
+						&& ref( $inspect_parsed->[0]{NetworkSettings}{IPAddress} ) eq '' )
+					{
+						$self->{podman_info}{$container_id}{ip} = $inspect_parsed->[0]{NetworkSettings}{IPAddress};
+						if ( defined( $inspect_parsed->[0]{NetworkSettings}{Gateway} )
+							&& ref( $inspect_parsed->[0]{NetworkSettings}{Gateway} ) eq '' )
+						{
+							$self->{podman_info}{$container_id}{gw} = $inspect_parsed->[0]{NetworkSettings}{Gateway};
+						}
+						if ( defined( $inspect_parsed->[0]{NetworkSettings}{MacAddress} )
+							&& ref( $inspect_parsed->[0]{NetworkSettings}{MacAddress} ) eq '' )
+						{
+							$self->{podman_info}{$container_id}{mac}
+								= $inspect_parsed->[0]{NetworkSettings}{MacAddress};
+						}
+						if ( defined( $inspect_parsed->[0]{NetworkSettings}{NetworkID} )
+							&& ref( $inspect_parsed->[0]{NetworkSettings}{NetworkID} ) eq '' )
+						{
+							my $network                = $inspect_parsed->[0]{NetworkSettings}{NetworkID};
+							my $network_inspect_output = `podman networkinspect $network 2> /dev/null`;
+							my $network_inspect_parsed;
+							eval { $network_inspect_parsed = decode_json($network_inspect_output) };
+							if (   defined($network_inspect_parsed)
+								&& ref($network_inspect_parsed) eq 'ARRAY'
+								&& defined( $network_inspect_parsed->[0] )
+								&& ref( $network_inspect_parsed->[0] ) eq 'HASH'
+								&& defined( $network_inspect_parsed->[0]{network_interface} )
+								&& ref( $network_inspect_parsed->[0]{network_interface} ) eq '' )
+							{
+								$self->{podman_info}{$container_id}{if}
+									= $network_inspect_parsed->[0]{network_interface};
+							} ## end if ( defined($network_inspect_parsed) && ref...)
+						} ## end if ( defined( $inspect_parsed->[0]{NetworkSettings...}))
+					} ## end if ( defined($inspect_parsed) && ref($inspect_parsed...))
 				} ## end if ( defined( $pod->{Id} ) && defined( $pod...))
 			} ## end foreach my $pod ( @{$podman_parsed} )
 		} ## end if ( defined($podman_parsed) && ref($podman_parsed...))
@@ -261,9 +314,51 @@ sub run {
 			my ( $container_id, $container_name ) = split( /,/, $line );
 			if ( defined($container_id) && defined($container_name) ) {
 				$self->{docker_mapping}{$container_id} = $container_name;
-			}
-		}
-	}
+				my $inspect_output = `docker inspect $container_id 2> /dev/null`;
+				my $inspect_parsed;
+				$self->{docker_info}{$container_id} = {};
+				eval { $inspect_parsed = decode_json($inspect_output) };
+				if (   defined($inspect_parsed)
+					&& ref($inspect_parsed) eq 'ARRAY'
+					&& defined( $inspect_parsed->[0] )
+					&& ref( $inspect_parsed->[0] ) eq 'HASH'
+					&& defined( $inspect_parsed->[0]{NetworkSettings} )
+					&& ref( $inspect_parsed->[0]{NetworkSettings} ) eq 'HASH'
+					&& defined( $inspect_parsed->[0]{NetworkSettings}{IPAddress} )
+					&& ref( $inspect_parsed->[0]{NetworkSettings}{IPAddress} ) eq '' )
+				{
+					$self->{docker_info}{$container_id}{ip} = $inspect_parsed->[0]{NetworkSettings}{IPAddress};
+					if ( defined( $inspect_parsed->[0]{NetworkSettings}{Gateway} )
+						&& ref( $inspect_parsed->[0]{NetworkSettings}{Gateway} ) eq '' )
+					{
+						$self->{docker_info}{$container_id}{gw} = $inspect_parsed->[0]{NetworkSettings}{Gateway};
+					}
+					if ( defined( $inspect_parsed->[0]{NetworkSettings}{MacAddress} )
+						&& ref( $inspect_parsed->[0]{NetworkSettings}{MacAddress} ) eq '' )
+					{
+						$self->{docker_info}{$container_id}{mac} = $inspect_parsed->[0]{NetworkSettings}{MacAddress};
+					}
+					if ( defined( $inspect_parsed->[0]{NetworkSettings}{NetworkID} )
+						&& ref( $inspect_parsed->[0]{NetworkSettings}{NetworkID} ) eq '' )
+					{
+						my $network                = $inspect_parsed->[0]{NetworkSettings}{NetworkID};
+						my $network_inspect_output = `docker networkinspect $network 2> /dev/null`;
+						my $network_inspect_parsed;
+						eval { $network_inspect_parsed = decode_json($network_inspect_output) };
+						if (   defined($network_inspect_parsed)
+							&& ref($network_inspect_parsed) eq 'ARRAY'
+							&& defined( $network_inspect_parsed->[0] )
+							&& ref( $network_inspect_parsed->[0] ) eq 'HASH'
+							&& defined( $network_inspect_parsed->[0]{network_interface} )
+							&& ref( $network_inspect_parsed->[0]{network_interface} ) eq '' )
+						{
+							$self->{docker_info}{$container_id}{if} = $network_inspect_parsed->[0]{network_interface};
+						}
+					} ## end if ( defined( $inspect_parsed->[0]{NetworkSettings...}))
+				} ## end if ( defined($inspect_parsed) && ref($inspect_parsed...))
+			} ## end if ( defined($container_id) && defined($container_name...))
+		} ## end foreach my $line (@docker_output_split)
+	} ## end if ( $? == 0 )
 
 	#
 	# gets of procs for finding a list of containers
@@ -303,23 +398,23 @@ sub run {
 			$data->{totals}{'size'}         = $data->{totals}{'size'} + $size;
 
 			if ( !defined( $cgroups_permem{$cgroup} ) ) {
-				$cgroups_permem{$cgroup}    = $permem;
-				$cgroups_percpu{$cgroup}    = $percpu;
-				$cgroups_procs{$cgroup}     = 1;
-				$cgroups_rss{$cgroup}       = $rss;
-				$cgroups_vsize{$cgroup}     = $vsize;
-				$cgroups_trs{$cgroup}       = $trs;
-				$cgroups_drs{$cgroup}       = $drs;
-				$cgroups_size{$cgroup}      = $size;
+				$cgroups_permem{$cgroup} = $permem;
+				$cgroups_percpu{$cgroup} = $percpu;
+				$cgroups_procs{$cgroup}  = 1;
+				$cgroups_rss{$cgroup}    = $rss;
+				$cgroups_vsize{$cgroup}  = $vsize;
+				$cgroups_trs{$cgroup}    = $trs;
+				$cgroups_drs{$cgroup}    = $drs;
+				$cgroups_size{$cgroup}   = $size;
 			} else {
 				$cgroups_permem{$cgroup} = $cgroups_permem{$cgroup} + $permem;
 				$cgroups_percpu{$cgroup} = $cgroups_percpu{$cgroup} + $percpu;
 				$cgroups_procs{$cgroup}++;
-				$cgroups_rss{$cgroup}       = $cgroups_rss{$cgroup} + $rss;
-				$cgroups_vsize{$cgroup}     = $cgroups_vsize{$cgroup} + $vsize;
-				$cgroups_trs{$cgroup}       = $cgroups_trs{$cgroup} + $trs;
-				$cgroups_drs{$cgroup}       = $cgroups_drs{$cgroup} + $drs;
-				$cgroups_size{$cgroup}      = $cgroups_size{$cgroup} + $size;
+				$cgroups_rss{$cgroup}   = $cgroups_rss{$cgroup} + $rss;
+				$cgroups_vsize{$cgroup} = $cgroups_vsize{$cgroup} + $vsize;
+				$cgroups_trs{$cgroup}   = $cgroups_trs{$cgroup} + $trs;
+				$cgroups_drs{$cgroup}   = $cgroups_drs{$cgroup} + $drs;
+				$cgroups_size{$cgroup}  = $cgroups_size{$cgroup} + $size;
 			} ## end else [ if ( !defined( $cgroups_permem{$cgroup} ) )]
 		} ## end if ( $cgroup =~ /^0\:\:\// )
 	} ## end foreach my $line (@ps_output_split)
