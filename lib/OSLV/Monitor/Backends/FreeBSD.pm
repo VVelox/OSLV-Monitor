@@ -142,9 +142,8 @@ sub run {
 		'written-blocks'               => 0,
 		'procs'                        => 0,
 		'signals-taken'                => 0,
-		'ipv4'                         => [],
+		'ip'                           => [],
 		'path'                         => undef,
-		'ipv6'                         => [],
 	};
 
 	# get a list of jails
@@ -162,17 +161,59 @@ sub run {
 		&& defined( $jls->{'jail-information'}{jail} )
 		&& ref( $jls->{'jail-information'}{jail} ) eq 'ARRAY' )
 	{
+		my @IP_keys = ( 'ipv4', 'ipv6' );
 		foreach my $jls_jail ( @{ $jls->{'jail-information'}{jail} } ) {
-			if (!defined($data->{oslvms}{ $jls_jail->{'hostname'} })) {
+			if ( !defined( $data->{oslvms}{ $jls_jail->{'hostname'} } ) ) {
 				$data->{oslvms}{ $jls_jail->{'hostname'} } = clone($base_stats);
 			}
 			$data->{oslvms}{ $jls_jail->{'hostname'} }{path} = $jls_jail->{path};
-			if ( defined( $jls_jail->{ipv4} ) && $jls_jail->{ipv4} ne '' ) {
-				push(@{$data->{oslvms}{ $jls_jail->{'hostname'} }{ipv4}}, $jls_jail->{ipv4});
-			}
-			if ( defined( $jls_jail->{ipv6} ) && $jls_jail->{ipv6} ne '' ) {
-				push(@{$data->{oslvms}{ $jls_jail->{'hostname'} }{ipv6}}, $jls_jail->{ipv6});
-			}
+			foreach my $ip_key (@IP_keys) {
+				if (
+					defined( $jls_jail->{$ip_key} )
+					&& (
+						( ref( $jls_jail->{$ip_key} ) eq '' && $jls_jail->{$ip_key} ne '' )
+						|| (   ref( $jls_jail->{$ip_key} ) eq 'ARRAY'
+							&& defined( $jls_jail->{$ip_key}[0] )
+							&& $jls_jail->{$ip_key}[0] ne '' )
+					)
+					)
+				{
+					if ( ref( $jls_jail->{$ip_key} ) eq '' ) {
+						# handle it if it is a string
+						$jls_jail->{$ip_key} =~ s/^[\t\ ]*//;
+						$jls_jail->{$ip_key} =~ s/[\t\ ]*$//;
+						if ( $jls_jail->{$ip_key} !~ /[\t\ \,]/ ) {
+							# if just a single IP, add it
+							push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{ip} }, $jls_jail->{$ip_key} );
+						} else {
+							# if multiple IPs, split it apart and add it
+							my @ip_split = split( /[\t \ \,]+/, $jls_jail->{$ip_key} );
+							foreach my $ip_split_item (@ip_split) {
+								if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
+									push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{ip} }, $ip_split_item );
+								}
+							}
+						}
+					} elsif ( ref( $jls_jail->{$ip_key} ) eq 'ARRAY' ) {
+						foreach my $ip_array_item ( @{ $jls_jail->{$ip_key} } ) {
+							$ip_array_item =~ s/^[\t\ ]*//;
+							$ip_array_item =~ s/[\t\ ]*$//;
+							if ( $ip_array_item !~ /[\t\ \,]/ ) {
+								# if just a single IP, add it
+								push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{ip} }, $ip_array_item );
+							} else {
+								# if multiple IPs, split it apart and add it
+								my @ip_split = split( /[\t \ \,]+/, $ip_array_item );
+								foreach my $ip_split_item (@ip_split) {
+									if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
+										push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{ip} }, $ip_split_item );
+									}
+								}
+							}
+						} ## end foreach my $ip_array_item ( @{ $jls_jail->{$ip_key...}})
+					} ## end elsif ( ref( $jls_jail->{$ip_key} ) eq 'ARRAY')
+				} ## end if ( defined( $jls_jail->{$ip_key} ) && ( ...))
+			} ## end foreach my $ip_key (@IP_keys)
 		} ## end foreach my $jls_jail ( @{ $jls->{'jail-information'...}})
 	} ## end if ( defined($jls) && ref($jls) eq 'HASH' ...)
 

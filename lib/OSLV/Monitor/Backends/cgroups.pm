@@ -229,9 +229,8 @@ sub run {
 		'text-size'                  => 0,
 		'size'                       => 0,
 		'virtual-size'               => 0,
-		'ipv4'                       => [],
+		'ip'                       => [],
 		'path'                       => undef,
-		'ipv6'                       => [],
 	};
 
 	#
