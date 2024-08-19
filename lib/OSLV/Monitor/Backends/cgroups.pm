@@ -50,7 +50,8 @@ sub new {
 		podman_mapping  => {},
 		podman_info     => {},
 		docker_mapping  => {},
-		docker_info     => {}
+		docker_info     => {},
+		uid_mapping     => {},
 	};
 	bless $self;
 
@@ -229,7 +230,7 @@ sub run {
 		'text-size'                  => 0,
 		'size'                       => 0,
 		'virtual-size'               => 0,
-		'ip'                       => [],
+		'ip'                         => [],
 		'path'                       => undef,
 	};
 
@@ -253,7 +254,7 @@ sub run {
 					} else {
 						$self->{podman_mapping}{ $pod->{Id} }{name} = $pod->{Names}[0];
 					}
-					my $container_id = $pod->{Id};
+					my $container_id   = $pod->{Id};
 					my $inspect_output = `podman inspect $container_id 2> /dev/null`;
 					my $inspect_parsed;
 					$self->{podman_info}{$container_id} = {};
@@ -501,6 +502,8 @@ sub run {
 		} ## end if ( -f $base_dir . '/io.stat' && -r $base_dir...)
 	} ## end foreach my $cgroup ( keys( %{ $self->{mappings}...}))
 
+	$data->{uid_mapping} = $self->{uid_mapping};
+
 	return $data;
 } ## end sub run
 
@@ -527,7 +530,7 @@ sub usable {
 	return 1;
 } ## end sub usable
 
-=head2 mapping
+=head2 cgroup_mapping
 
 =cut
 
@@ -559,6 +562,20 @@ sub cgroup_mapping {
 	} elsif ( $cgroup_name =~ /^0\:\:\/user\.slice\// ) {
 		$cgroup_name =~ s/^0\:\:\/user\.slice\///;
 		$cgroup_name =~ s/\.slice.*$//;
+
+		if ( $cgroup_name =~ /^\d+$/ ) {
+			my ( $name, $passwd, $uid, $gid, $quota, $comment, $gecos, $dir, $shell, $expire ) = getpwuid($cgroup_name);
+			if ( defined($name) ) {
+				$self->{uid_mapping}{$cgroup_name} = {
+					name  => $name,
+					gid   => $gid,
+					home  => $dir,
+					gecos => $gecos,
+					shell => $shell,
+				};
+			}
+		} ## end if ( $cgroup_name =~ /^\d+$/ )
+
 		return 'u_' . $cgroup_name;
 	} elsif ( $cgroup_name =~ /^0\:\:\/machine\.slice\/libpod\-conmon-/ ) {
 		return 'libpod-conmon';
