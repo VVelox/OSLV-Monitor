@@ -562,6 +562,7 @@ sub cgroup_mapping {
 	} elsif ( $cgroup_name =~ /^0\:\:\/user\.slice\// ) {
 		$cgroup_name =~ s/^0\:\:\/user\.slice\///;
 		$cgroup_name =~ s/\.slice.*$//;
+		$cgroup_name =~ s/^user[\-\_]//;
 
 		if ( $cgroup_name =~ /^\d+$/ ) {
 			my ( $name, $passwd, $uid, $gid, $quota, $comment, $gecos, $dir, $shell, $expire ) = getpwuid($cgroup_name);
