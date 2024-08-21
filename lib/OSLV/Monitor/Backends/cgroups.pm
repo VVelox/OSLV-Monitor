@@ -298,7 +298,7 @@ sub run {
 								$net_work_info->{if} = $network_inspect_parsed->[0]{network_interface};
 							} ## end if ( defined($network_inspect_parsed) && ref...)
 						} ## end if ( defined( $inspect_parsed->[0]{NetworkSettings...}))
-						push( @{ $self->{docker_info}{$container_id}{ip} }, $net_work_info );
+						push( @{ $self->{podman_info}{$container_id}{ip} }, $net_work_info );
 					} ## end if ( defined($inspect_parsed) && ref($inspect_parsed...))
 
 				} ## end if ( defined( $pod->{Id} ) && defined( $pod...))
