@@ -143,7 +143,7 @@ sub run {
 		'procs'                        => 0,
 		'signals-taken'                => 0,
 		'ip'                           => [],
-		'path'                         => undef,
+		'path'                         => [],
 	};
 
 	# get a list of jails
@@ -166,7 +166,7 @@ sub run {
 			if ( !defined( $data->{oslvms}{ $jls_jail->{'hostname'} } ) ) {
 				$data->{oslvms}{ $jls_jail->{'hostname'} } = clone($base_stats);
 			}
-			$data->{oslvms}{ $jls_jail->{'hostname'} }{path} = $jls_jail->{path};
+			push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{path} }, $jls_jail->{path} );
 			foreach my $ip_key (@IP_keys) {
 				if (
 					defined( $jls_jail->{$ip_key} )
