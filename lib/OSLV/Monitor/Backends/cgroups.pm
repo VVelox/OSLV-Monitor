@@ -460,9 +460,9 @@ sub run {
 			my $container_name = $name;
 			$container_name =~ s/^[pd]\_//;
 			if ( $name =~ /^p\_/ ) {
-				$data->{oslvms}{$name}{'size'} = $self->{podman_info}{$container_name}{ip};
+				$data->{oslvms}{$name}{'ip'} = $self->{podman_info}{$container_name}{ip};
 			} elsif ( $name =~ /^d\_/ ) {
-				$data->{oslvms}{$name}{'size'} = $self->{docker_info}{$container_name}{ip};
+				$data->{oslvms}{$name}{'ip'} = $self->{docker_info}{$container_name}{ip};
 			}
 		}
 
