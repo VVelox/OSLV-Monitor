@@ -6,6 +6,7 @@ use warnings;
 use JSON;
 use Clone 'clone';
 use File::Slurp;
+use List::Util qw( uniq );
 
 =head1 NAME
 
@@ -216,6 +217,13 @@ sub run {
 			} ## end foreach my $ip_key (@IP_keys)
 		} ## end foreach my $jls_jail ( @{ $jls->{'jail-information'...}})
 	} ## end if ( defined($jls) && ref($jls) eq 'HASH' ...)
+
+	# remove possible dup paths
+	my @found_jails = keys( %{ $data->{oslvms} } );
+	foreach my $jail (@found_jails) {
+		my @uniq_paths = uniq( @{ $data->{oslvms}{$jail}{path} } );
+		$data->{oslvms}{$jail}{path} = \@uniq_paths;
+	}
 
 	my @stats = (
 		'copy-on-write-faults',         'cpu-time',
