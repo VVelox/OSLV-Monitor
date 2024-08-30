@@ -229,6 +229,10 @@ sub run {
 		'virtual-size'               => 0,
 		'ip'                         => [],
 		'path'                       => undef,
+		'ipv4_gw'                    => undef,
+		'ipv6_gw'                    => undef,
+		'ipv4_gw_if'                 => undef,
+		'ipv6_gw_if'                 => undef,
 	};
 
 	#
@@ -296,7 +300,7 @@ sub run {
 								&& ref( $network_inspect_parsed->[0]{network_interface} ) eq '' )
 							{
 								$net_work_info->{if} = $network_inspect_parsed->[0]{network_interface};
-							} ## end if ( defined($network_inspect_parsed) && ref...)
+							}
 						} ## end if ( defined( $inspect_parsed->[0]{NetworkSettings...}))
 						push( @{ $self->{podman_info}{$container_id}{ip} }, $net_work_info );
 					} ## end if ( defined($inspect_parsed) && ref($inspect_parsed...))

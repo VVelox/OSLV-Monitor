@@ -7,6 +7,7 @@ use JSON;
 use Clone 'clone';
 use File::Slurp;
 use List::Util qw( uniq );
+use IO::Interface::Simple;
 
 =head1 NAME
 
@@ -168,7 +169,71 @@ sub run {
 				$data->{oslvms}{ $jls_jail->{'hostname'} } = clone($base_stats);
 			}
 			push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{path} }, $jls_jail->{path} );
+
+			my $jname = $jls_jail->{'hostname'};
+
+			my $ipv4_if    = undef;
+			my $ipv4_gw    = undef;
+			my $ipv4_gw_if = undef;
+			my $ipv6_if    = undef;
+			my $ipv6_gw    = undef;
+			my $ipv6_gw_if = undef;
+			eval {
+				my $netstat_raw = `/usr/bin/netstat -j $jname -rn --libxo json 2> /dev/null`;
+				if ( $? == 0 ) {
+					my $netstat_raw_parsed = decode_json($netstat_raw);
+					if (   defined($netstat_raw_parsed)
+						&& ref($netstat_raw_parsed) eq 'HASH'
+						&& defined( $netstat_raw_parsed->{statistics} )
+						&& ref( $netstat_raw_parsed->{statistics} ) eq 'HASH'
+						&& defined( $netstat_raw_parsed->{statistics}{'route-table'} )
+						&& ref( $netstat_raw_parsed->{statistics}{'route-table'} ) eq 'HASH'
+						&& defined( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} )
+						&& ref( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} ) eq 'ARRAY'
+						&& defined( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'}[0] ) )
+					{
+						foreach my $family ( @{ $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} } ) {
+							if (   ref( $family->{'address-family'} ) eq ''
+								&& ref( $family->{'rt-entry'} ) eq 'ARRAY'
+								&& defined( $family->{'rt-entry'}[0] ) )
+							{
+								foreach my $rt_entry ( @{ $family->{'rt-entry'} } ) {
+									if (   ref($rt_entry) eq 'HASH'
+										&& defined( $rt_entry->{destination} )
+										&& ref( $rt_entry->{destination} ) eq ''
+										&& defined( $rt_entry->{gateway} )
+										&& ref( $rt_entry->{gateway} ) eq ''
+										&& defined( $rt_entry->{'interface-name'} )
+										&& ref( $rt_entry->{'interface-name'} ) eq '' )
+									{
+										if ( $family->{'address-family'} eq 'Internet' ) {
+											$ipv4_gw    = $rt_entry->{gateway};
+											$ipv4_gw_if = $rt_entry->{'interface-name'};
+										} elsif ( $family->{'address-family'} eq 'Internet6' ) {
+											$ipv6_gw    = $rt_entry->{gateway};
+											$ipv6_gw_if = $rt_entry->{'interface-name'};
+										}
+									} ## end if ( ref($rt_entry) eq 'HASH' && defined( ...))
+								} ## end foreach my $rt_entry ( @{ $family->{'rt-entry'}...})
+							} ## end if ( ref( $family->{'address-family'} ) eq...)
+						} ## end foreach my $family ( @{ $netstat_raw_parsed->{statistics...}})
+					} ## end if ( defined($netstat_raw_parsed) && ref($netstat_raw_parsed...))
+				} ## end if ( $? == 0 )
+			};
+
 			foreach my $ip_key (@IP_keys) {
+				my $ip_gw;
+				my $ip_if;
+				my $ip_gw_if;
+				if ( $ip_key eq 'ipv4' ) {
+					$ip_gw    = $ipv4_gw;
+					$ip_if    = $ipv4_if;
+					$ip_gw_if = $ipv4_gw_if;
+				} elsif ( $ip_key eq 'ipv6' ) {
+					$ip_gw    = $ipv6_gw;
+					$ip_if    = $ipv6_if;
+					$ip_gw_if = $ipv6_gw_if;
+				}
 				if (
 					defined( $jls_jail->{$ip_key} )
 					&& (
@@ -185,32 +250,53 @@ sub run {
 						$jls_jail->{$ip_key} =~ s/[\t\ ]*$//;
 						if ( $jls_jail->{$ip_key} !~ /[\t\ \,]/ ) {
 							# if just a single IP, add it
-							push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{ip} }, $jls_jail->{$ip_key} );
+							push(
+								@{ $data->{oslvms}{$jname}{ip} },
+								{
+									ip    => $jls_jail->{$ip_key},
+									gw    => $ip_gw,
+									gw_if => $ip_gw_if,
+								}
+							);
 						} else {
 							# if multiple IPs, split it apart and add it
 							my @ip_split = split( /[\t \ \,]+/, $jls_jail->{$ip_key} );
 							foreach my $ip_split_item (@ip_split) {
 								if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
-									push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{ip} }, $ip_split_item );
-								}
-							}
-						}
+									push(
+										@{ $data->{oslvms}{$jname}{ip} },
+										{
+											ip    => $ip_split_item,
+											gw    => $ip_gw,
+											gw_if => $ip_gw_if,
+										}
+									);
+								} ## end if ( $ip_split_item ne '' && $ip_split_item...)
+							} ## end foreach my $ip_split_item (@ip_split)
+						} ## end else [ if ( $jls_jail->{$ip_key} !~ /[\t\ \,]/ ) ]
 					} elsif ( ref( $jls_jail->{$ip_key} ) eq 'ARRAY' ) {
 						foreach my $ip_array_item ( @{ $jls_jail->{$ip_key} } ) {
 							$ip_array_item =~ s/^[\t\ ]*//;
 							$ip_array_item =~ s/[\t\ ]*$//;
 							if ( $ip_array_item !~ /[\t\ \,]/ ) {
 								# if just a single IP, add it
-								push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{ip} }, $ip_array_item );
+								push( @{ $data->{oslvms}{$jname}{ip} }, $ip_array_item );
 							} else {
 								# if multiple IPs, split it apart and add it
 								my @ip_split = split( /[\t \ \,]+/, $ip_array_item );
 								foreach my $ip_split_item (@ip_split) {
 									if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
-										push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{ip} }, $ip_split_item );
-									}
-								}
-							}
+										push(
+											@{ $data->{oslvms}{$jname}{ip} },
+											{
+												ip    => $ip_split_item,
+												gw    => $ip_gw,
+												gw_if => $ip_gw_if,
+											}
+										);
+									} ## end if ( $ip_split_item ne '' && $ip_split_item...)
+								} ## end foreach my $ip_split_item (@ip_split)
+							} ## end else [ if ( $ip_array_item !~ /[\t\ \,]/ ) ]
 						} ## end foreach my $ip_array_item ( @{ $jls_jail->{$ip_key...}})
 					} ## end elsif ( ref( $jls_jail->{$ip_key} ) eq 'ARRAY')
 				} ## end if ( defined( $jls_jail->{$ip_key} ) && ( ...))
@@ -374,6 +460,23 @@ sub usable {
 
 	return 1;
 } ## end sub usable
+
+sub ip_to_if {
+	my $self = $_[0];
+	my $ip   = $_[1];
+
+	if ( !defined($ip) || ref($ip) ne '' ) {
+		return undef;
+	}
+
+	my $if = IO::Interface::Simple->new_from_address($ip);
+
+	if ( !defined($if) ) {
+		return undef;
+	}
+
+	return $if->name;
+} ## end sub ip_to_if
 
 =head1 AUTHOR
 
