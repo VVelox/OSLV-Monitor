@@ -245,7 +245,7 @@ sub run {
 						$jls_jail->{$ip_key} =~ s/^[\t\ ]*//;
 						$jls_jail->{$ip_key} =~ s/[\t\ ]*$//;
 						if ( $jls_jail->{$ip_key} !~ /[\t\ \,]/ ) {
-							eval { $ip_if = $self->ip_to_if; };
+							eval { $ip_if = $self->ip_to_if($jls_jail->{$ip_key}); };
 							# if just a single IP, add it
 							push(
 								@{ $data->{oslvms}{$jname}{ip} },
@@ -261,7 +261,7 @@ sub run {
 							my @ip_split = split( /[\t \ \,]+/, $jls_jail->{$ip_key} );
 							foreach my $ip_split_item (@ip_split) {
 								if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
-									eval { $ip_if = $self->ip_to_if; };
+									eval { $ip_if = $self->ip_to_if($jls_jail->{$ip_key}); };
 									push(
 										@{ $data->{oslvms}{$jname}{ip} },
 										{
@@ -279,7 +279,7 @@ sub run {
 							$ip_array_item =~ s/^[\t\ ]*//;
 							$ip_array_item =~ s/[\t\ ]*$//;
 							if ( $ip_array_item !~ /[\t\ \,]/ ) {
-								eval { $ip_if = $self->ip_to_if; };
+								eval { $ip_if = $self->ip_to_if($jls_jail->{$ip_key}); };
 								# if just a single IP, add it
 								push( @{ $data->{oslvms}{$jname}{ip} }, $ip_array_item );
 							} else {
@@ -287,7 +287,7 @@ sub run {
 								my @ip_split = split( /[\t \ \,]+/, $ip_array_item );
 								foreach my $ip_split_item (@ip_split) {
 									if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
-										eval { $ip_if = $self->ip_to_if; };
+										eval { $ip_if = $self->ip_to_if($jls_jail->{$ip_key}); };
 										push(
 											@{ $data->{oslvms}{$jname}{ip} },
 											{
