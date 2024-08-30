@@ -172,10 +172,8 @@ sub run {
 
 			my $jname = $jls_jail->{'hostname'};
 
-			my $ipv4_if    = undef;
 			my $ipv4_gw    = undef;
 			my $ipv4_gw_if = undef;
-			my $ipv6_if    = undef;
 			my $ipv6_gw    = undef;
 			my $ipv6_gw_if = undef;
 			eval {
@@ -227,11 +225,9 @@ sub run {
 				my $ip_gw_if;
 				if ( $ip_key eq 'ipv4' ) {
 					$ip_gw    = $ipv4_gw;
-					$ip_if    = $ipv4_if;
 					$ip_gw_if = $ipv4_gw_if;
 				} elsif ( $ip_key eq 'ipv6' ) {
 					$ip_gw    = $ipv6_gw;
-					$ip_if    = $ipv6_if;
 					$ip_gw_if = $ipv6_gw_if;
 				}
 				if (
@@ -249,11 +245,13 @@ sub run {
 						$jls_jail->{$ip_key} =~ s/^[\t\ ]*//;
 						$jls_jail->{$ip_key} =~ s/[\t\ ]*$//;
 						if ( $jls_jail->{$ip_key} !~ /[\t\ \,]/ ) {
+							eval { $ip_if = $self->ip_to_if; };
 							# if just a single IP, add it
 							push(
 								@{ $data->{oslvms}{$jname}{ip} },
 								{
 									ip    => $jls_jail->{$ip_key},
+									if    => $ip_if,
 									gw    => $ip_gw,
 									gw_if => $ip_gw_if,
 								}
@@ -263,10 +261,12 @@ sub run {
 							my @ip_split = split( /[\t \ \,]+/, $jls_jail->{$ip_key} );
 							foreach my $ip_split_item (@ip_split) {
 								if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
+									eval { $ip_if = $self->ip_to_if; };
 									push(
 										@{ $data->{oslvms}{$jname}{ip} },
 										{
 											ip    => $ip_split_item,
+											if    => $ip_if,
 											gw    => $ip_gw,
 											gw_if => $ip_gw_if,
 										}
@@ -279,6 +279,7 @@ sub run {
 							$ip_array_item =~ s/^[\t\ ]*//;
 							$ip_array_item =~ s/[\t\ ]*$//;
 							if ( $ip_array_item !~ /[\t\ \,]/ ) {
+								eval { $ip_if = $self->ip_to_if; };
 								# if just a single IP, add it
 								push( @{ $data->{oslvms}{$jname}{ip} }, $ip_array_item );
 							} else {
@@ -286,10 +287,12 @@ sub run {
 								my @ip_split = split( /[\t \ \,]+/, $ip_array_item );
 								foreach my $ip_split_item (@ip_split) {
 									if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
+										eval { $ip_if = $self->ip_to_if; };
 										push(
 											@{ $data->{oslvms}{$jname}{ip} },
 											{
 												ip    => $ip_split_item,
+												if    => $ip_if,
 												gw    => $ip_gw,
 												gw_if => $ip_gw_if,
 											}
