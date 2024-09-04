@@ -61,8 +61,8 @@ sub new {
 
 	if ( !defined( $opts{obj} ) ) {
 		die('$opts{obj} is undef');
-	} elsif ( ref( $opts{obj} ) ne 'OSLVM::Monitor' ) {
-		die('ref $opts{obj} is not OSLVM::Monitor');
+	} elsif ( ref( $opts{obj} ) ne 'OSLV::Monitor' ) {
+		die('ref $opts{obj} is not OSLV::Monitor');
 	}
 
 	my $self = { version => 1, proc_cache => $opts{base_dir} . '/freebsd_proc_cache.json', obj => $opts{obj} };
