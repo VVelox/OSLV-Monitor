@@ -48,6 +48,8 @@ The following arguments are usable.
             cache, freebsd_proc_cache.json, is is created.
         Default :: /var/cache/oslv_monitor
 
+    - obj :: The OSLVM::Monitor object.
+
 =cut
 
 sub new {
@@ -57,7 +59,13 @@ sub new {
 		$opts{base_dir} = '/var/cache/oslv_monitor';
 	}
 
-	my $self = { version => 1, proc_cache => $opts{base_dir} . '/freebsd_proc_cache.json' };
+	if ( !defined( $opts{obj} ) ) {
+		die('$opts{obj} is undef');
+	} elsif ( ref( $opts{obj} ) ne 'OSLVM::Monitor' ) {
+		die('ref $opts{obj} is not OSLVM::Monitor');
+	}
+
+	my $self = { version => 1, proc_cache => $opts{base_dir} . '/freebsd_proc_cache.json', obj => $opts{obj} };
 	bless $self;
 
 	return $self;
@@ -165,129 +173,107 @@ sub run {
 	{
 		my @IP_keys = ( 'ipv4', 'ipv6' );
 		foreach my $jls_jail ( @{ $jls->{'jail-information'}{jail} } ) {
-			if ( !defined( $data->{oslvms}{ $jls_jail->{'hostname'} } ) ) {
-				$data->{oslvms}{ $jls_jail->{'hostname'} } = clone($base_stats);
-			}
-			push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{path} }, $jls_jail->{path} );
-
-			my $jname = $jls_jail->{'hostname'};
-
-			my $ipv4_gw    = undef;
-			my $ipv4_gw_if = undef;
-			my $ipv6_gw    = undef;
-			my $ipv6_gw_if = undef;
-			eval {
-				my $netstat_raw = `/usr/bin/netstat -j $jname -rn --libxo json 2> /dev/null`;
-				if ( $? == 0 ) {
-					my $netstat_raw_parsed = decode_json($netstat_raw);
-					if (   defined($netstat_raw_parsed)
-						&& ref($netstat_raw_parsed) eq 'HASH'
-						&& defined( $netstat_raw_parsed->{statistics} )
-						&& ref( $netstat_raw_parsed->{statistics} ) eq 'HASH'
-						&& defined( $netstat_raw_parsed->{statistics}{'route-table'} )
-						&& ref( $netstat_raw_parsed->{statistics}{'route-table'} ) eq 'HASH'
-						&& defined( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} )
-						&& ref( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} ) eq 'ARRAY'
-						&& defined( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'}[0] ) )
-					{
-						foreach my $family ( @{ $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} } ) {
-							if (   ref( $family->{'address-family'} ) eq ''
-								&& ref( $family->{'rt-entry'} ) eq 'ARRAY'
-								&& defined( $family->{'rt-entry'}[0] ) )
-							{
-								foreach my $rt_entry ( @{ $family->{'rt-entry'} } ) {
-									if (   ref($rt_entry) eq 'HASH'
-										&& defined( $rt_entry->{destination} )
-										&& ref( $rt_entry->{destination} ) eq ''
-										&& defined( $rt_entry->{gateway} )
-										&& ref( $rt_entry->{gateway} ) eq ''
-										&& defined( $rt_entry->{'interface-name'} )
-										&& ref( $rt_entry->{'interface-name'} ) eq '' )
-									{
-										if ( $family->{'address-family'} eq 'Internet' ) {
-											$ipv4_gw    = $rt_entry->{gateway};
-											$ipv4_gw_if = $rt_entry->{'interface-name'};
-										} elsif ( $family->{'address-family'} eq 'Internet6' ) {
-											$ipv6_gw    = $rt_entry->{gateway};
-											$ipv6_gw_if = $rt_entry->{'interface-name'};
-										}
-									} ## end if ( ref($rt_entry) eq 'HASH' && defined( ...))
-								} ## end foreach my $rt_entry ( @{ $family->{'rt-entry'}...})
-							} ## end if ( ref( $family->{'address-family'} ) eq...)
-						} ## end foreach my $family ( @{ $netstat_raw_parsed->{statistics...}})
-					} ## end if ( defined($netstat_raw_parsed) && ref($netstat_raw_parsed...))
-				} ## end if ( $? == 0 )
-			};
-
-			foreach my $ip_key (@IP_keys) {
-				my $ip_gw;
-				my $ip_if;
-				my $ip_gw_if;
-				if ( $ip_key eq 'ipv4' ) {
-					$ip_gw    = $ipv4_gw;
-					$ip_gw_if = $ipv4_gw_if;
-				} elsif ( $ip_key eq 'ipv6' ) {
-					$ip_gw    = $ipv6_gw;
-					$ip_gw_if = $ipv6_gw_if;
+			# only process this jail if the include check returns true, otherwise ignore it
+			if ( $self->{obj}->include( $jls_jail->{'hostname'} ) ) {
+				if ( !defined( $data->{oslvms}{ $jls_jail->{'hostname'} } ) ) {
+					$data->{oslvms}{ $jls_jail->{'hostname'} } = clone($base_stats);
 				}
-				if (
-					defined( $jls_jail->{$ip_key} )
-					&& (
-						( ref( $jls_jail->{$ip_key} ) eq '' && $jls_jail->{$ip_key} ne '' )
-						|| (   ref( $jls_jail->{$ip_key} ) eq 'ARRAY'
-							&& defined( $jls_jail->{$ip_key}[0] )
-							&& $jls_jail->{$ip_key}[0] ne '' )
-					)
-					)
-				{
-					if ( ref( $jls_jail->{$ip_key} ) eq '' ) {
-						# handle it if it is a string
-						$jls_jail->{$ip_key} =~ s/^[\t\ ]*//;
-						$jls_jail->{$ip_key} =~ s/[\t\ ]*$//;
-						if ( $jls_jail->{$ip_key} !~ /[\t\ \,]/ ) {
-							eval { $ip_if = $self->ip_to_if($jls_jail->{$ip_key}); };
-							# if just a single IP, add it
-							push(
-								@{ $data->{oslvms}{$jname}{ip} },
+				push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{path} }, $jls_jail->{path} );
+
+				my $jname = $jls_jail->{'hostname'};
+
+				my $ipv4_gw    = undef;
+				my $ipv4_gw_if = undef;
+				my $ipv6_gw    = undef;
+				my $ipv6_gw_if = undef;
+				eval {
+					my $netstat_raw = `/usr/bin/netstat -j $jname -rn --libxo json 2> /dev/null`;
+					if ( $? == 0 ) {
+						my $netstat_raw_parsed = decode_json($netstat_raw);
+						if (   defined($netstat_raw_parsed)
+							&& ref($netstat_raw_parsed) eq 'HASH'
+							&& defined( $netstat_raw_parsed->{statistics} )
+							&& ref( $netstat_raw_parsed->{statistics} ) eq 'HASH'
+							&& defined( $netstat_raw_parsed->{statistics}{'route-table'} )
+							&& ref( $netstat_raw_parsed->{statistics}{'route-table'} ) eq 'HASH'
+							&& defined( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} )
+							&& ref( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} ) eq 'ARRAY'
+							&& defined( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'}[0] ) )
+						{
+							foreach
+								my $family ( @{ $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} } )
+							{
+								if (   ref( $family->{'address-family'} ) eq ''
+									&& ref( $family->{'rt-entry'} ) eq 'ARRAY'
+									&& defined( $family->{'rt-entry'}[0] ) )
 								{
-									ip    => $jls_jail->{$ip_key},
-									if    => $ip_if,
-									gw    => $ip_gw,
-									gw_if => $ip_gw_if,
-								}
-							);
-						} else {
-							# if multiple IPs, split it apart and add it
-							my @ip_split = split( /[\t \ \,]+/, $jls_jail->{$ip_key} );
-							foreach my $ip_split_item (@ip_split) {
-								if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
-									eval { $ip_if = $self->ip_to_if($jls_jail->{$ip_key}); };
-									push(
-										@{ $data->{oslvms}{$jname}{ip} },
+									foreach my $rt_entry ( @{ $family->{'rt-entry'} } ) {
+										if (   ref($rt_entry) eq 'HASH'
+											&& defined( $rt_entry->{destination} )
+											&& ref( $rt_entry->{destination} ) eq ''
+											&& defined( $rt_entry->{gateway} )
+											&& ref( $rt_entry->{gateway} ) eq ''
+											&& defined( $rt_entry->{'interface-name'} )
+											&& ref( $rt_entry->{'interface-name'} ) eq '' )
 										{
-											ip    => $ip_split_item,
-											if    => $ip_if,
-											gw    => $ip_gw,
-											gw_if => $ip_gw_if,
-										}
-									);
-								} ## end if ( $ip_split_item ne '' && $ip_split_item...)
-							} ## end foreach my $ip_split_item (@ip_split)
-						} ## end else [ if ( $jls_jail->{$ip_key} !~ /[\t\ \,]/ ) ]
-					} elsif ( ref( $jls_jail->{$ip_key} ) eq 'ARRAY' ) {
-						foreach my $ip_array_item ( @{ $jls_jail->{$ip_key} } ) {
-							$ip_array_item =~ s/^[\t\ ]*//;
-							$ip_array_item =~ s/[\t\ ]*$//;
-							if ( $ip_array_item !~ /[\t\ \,]/ ) {
-								eval { $ip_if = $self->ip_to_if($jls_jail->{$ip_key}); };
+											if ( $family->{'address-family'} eq 'Internet' ) {
+												$ipv4_gw    = $rt_entry->{gateway};
+												$ipv4_gw_if = $rt_entry->{'interface-name'};
+											} elsif ( $family->{'address-family'} eq 'Internet6' ) {
+												$ipv6_gw    = $rt_entry->{gateway};
+												$ipv6_gw_if = $rt_entry->{'interface-name'};
+											}
+										} ## end if ( ref($rt_entry) eq 'HASH' && defined( ...))
+									} ## end foreach my $rt_entry ( @{ $family->{'rt-entry'}...})
+								} ## end if ( ref( $family->{'address-family'} ) eq...)
+							} ## end foreach my $family ( @{ $netstat_raw_parsed->{statistics...}})
+						} ## end if ( defined($netstat_raw_parsed) && ref($netstat_raw_parsed...))
+					} ## end if ( $? == 0 )
+				};
+
+				foreach my $ip_key (@IP_keys) {
+					my $ip_gw;
+					my $ip_if;
+					my $ip_gw_if;
+					if ( $ip_key eq 'ipv4' ) {
+						$ip_gw    = $ipv4_gw;
+						$ip_gw_if = $ipv4_gw_if;
+					} elsif ( $ip_key eq 'ipv6' ) {
+						$ip_gw    = $ipv6_gw;
+						$ip_gw_if = $ipv6_gw_if;
+					}
+					if (
+						defined( $jls_jail->{$ip_key} )
+						&& (
+							( ref( $jls_jail->{$ip_key} ) eq '' && $jls_jail->{$ip_key} ne '' )
+							|| (   ref( $jls_jail->{$ip_key} ) eq 'ARRAY'
+								&& defined( $jls_jail->{$ip_key}[0] )
+								&& $jls_jail->{$ip_key}[0] ne '' )
+						)
+						)
+					{
+						if ( ref( $jls_jail->{$ip_key} ) eq '' ) {
+							# handle it if it is a string
+							$jls_jail->{$ip_key} =~ s/^[\t\ ]*//;
+							$jls_jail->{$ip_key} =~ s/[\t\ ]*$//;
+							if ( $jls_jail->{$ip_key} !~ /[\t\ \,]/ ) {
+								eval { $ip_if = $self->ip_to_if( $jls_jail->{$ip_key} ); };
 								# if just a single IP, add it
-								push( @{ $data->{oslvms}{$jname}{ip} }, $ip_array_item );
+								push(
+									@{ $data->{oslvms}{$jname}{ip} },
+									{
+										ip    => $jls_jail->{$ip_key},
+										if    => $ip_if,
+										gw    => $ip_gw,
+										gw_if => $ip_gw_if,
+									}
+								);
 							} else {
 								# if multiple IPs, split it apart and add it
-								my @ip_split = split( /[\t \ \,]+/, $ip_array_item );
+								my @ip_split = split( /[\t \ \,]+/, $jls_jail->{$ip_key} );
 								foreach my $ip_split_item (@ip_split) {
 									if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
-										eval { $ip_if = $self->ip_to_if($jls_jail->{$ip_key}); };
+										eval { $ip_if = $self->ip_to_if( $jls_jail->{$ip_key} ); };
 										push(
 											@{ $data->{oslvms}{$jname}{ip} },
 											{
@@ -299,11 +285,38 @@ sub run {
 										);
 									} ## end if ( $ip_split_item ne '' && $ip_split_item...)
 								} ## end foreach my $ip_split_item (@ip_split)
-							} ## end else [ if ( $ip_array_item !~ /[\t\ \,]/ ) ]
-						} ## end foreach my $ip_array_item ( @{ $jls_jail->{$ip_key...}})
-					} ## end elsif ( ref( $jls_jail->{$ip_key} ) eq 'ARRAY')
-				} ## end if ( defined( $jls_jail->{$ip_key} ) && ( ...))
-			} ## end foreach my $ip_key (@IP_keys)
+							} ## end else [ if ( $jls_jail->{$ip_key} !~ /[\t\ \,]/ ) ]
+						} elsif ( ref( $jls_jail->{$ip_key} ) eq 'ARRAY' ) {
+							foreach my $ip_array_item ( @{ $jls_jail->{$ip_key} } ) {
+								$ip_array_item =~ s/^[\t\ ]*//;
+								$ip_array_item =~ s/[\t\ ]*$//;
+								if ( $ip_array_item !~ /[\t\ \,]/ ) {
+									eval { $ip_if = $self->ip_to_if( $jls_jail->{$ip_key} ); };
+									# if just a single IP, add it
+									push( @{ $data->{oslvms}{$jname}{ip} }, $ip_array_item );
+								} else {
+									# if multiple IPs, split it apart and add it
+									my @ip_split = split( /[\t \ \,]+/, $ip_array_item );
+									foreach my $ip_split_item (@ip_split) {
+										if ( $ip_split_item ne '' && $ip_split_item =~ /^[A-Fa-f\:\.0-9]+$/ ) {
+											eval { $ip_if = $self->ip_to_if( $jls_jail->{$ip_key} ); };
+											push(
+												@{ $data->{oslvms}{$jname}{ip} },
+												{
+													ip    => $ip_split_item,
+													if    => $ip_if,
+													gw    => $ip_gw,
+													gw_if => $ip_gw_if,
+												}
+											);
+										} ## end if ( $ip_split_item ne '' && $ip_split_item...)
+									} ## end foreach my $ip_split_item (@ip_split)
+								} ## end else [ if ( $ip_array_item !~ /[\t\ \,]/ ) ]
+							} ## end foreach my $ip_array_item ( @{ $jls_jail->{$ip_key...}})
+						} ## end elsif ( ref( $jls_jail->{$ip_key} ) eq 'ARRAY')
+					} ## end if ( defined( $jls_jail->{$ip_key} ) && ( ...))
+				} ## end foreach my $ip_key (@IP_keys)
+			} ## end if ( $self->{obj}->include( $jls_jail->{'hostname'...}))
 		} ## end foreach my $jls_jail ( @{ $jls->{'jail-information'...}})
 	} ## end if ( defined($jls) && ref($jls) eq 'HASH' ...)
 
@@ -365,12 +378,9 @@ sub run {
 		&& ref( $ps->{'process-information'}{process} ) eq 'ARRAY' )
 	{
 		foreach my $proc ( @{ $ps->{'process-information'}{process} } ) {
-			if ( $proc->{'jail-name'} ne '-' ) {
-				# should not happen in general... only happens if a jail was just created in between jls and ps
-				if ( !defined( $data->{oslvms}{ $proc->{'jail-name'} } ) ) {
-					$data->{oslvms}{ $proc->{'jail-name'} } = clone($base_stats);
-				}
-
+			# - means there is no jail
+			# if it is not defined it means it was previously not included
+			if ( $proc->{'jail-name'} ne '-' && defined( $data->{oslvms}{ $proc->{'jail-name'} } ) ) {
 				my $cache_name
 					= $proc->{pid} . '-'
 					. $proc->{uid} . '-'
@@ -422,7 +432,7 @@ sub run {
 				$data->{totals}{procs}++;
 
 				$new_proc_cache->{$cache_name} = $proc;
-			} ## end if ( $proc->{'jail-name'} ne '-' )
+			} ## end if ( $proc->{'jail-name'} ne '-' && defined...)
 		} ## end foreach my $proc ( @{ $ps->{'process-information'...}})
 	} ## end if ( defined($ps) && ref($ps) eq 'HASH' &&...)
 

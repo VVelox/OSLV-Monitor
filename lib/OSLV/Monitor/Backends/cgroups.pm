@@ -6,6 +6,7 @@ use warnings;
 use JSON;
 use Clone 'clone';
 use File::Slurp;
+use IO::Interface::Simple;
 
 =head1 NAME
 
@@ -228,11 +229,7 @@ sub run {
 		'size'                       => 0,
 		'virtual-size'               => 0,
 		'ip'                         => [],
-		'path'                       => undef,
-		'ipv4_gw'                    => undef,
-		'ipv6_gw'                    => undef,
-		'ipv4_gw_if'                 => undef,
-		'ipv6_gw_if'                 => undef,
+		'path'                       => [],
 	};
 
 	#
@@ -615,6 +612,23 @@ sub cgroup_mapping {
 	$cgroup_name =~ s/\/.*//;
 	return $cgroup_name;
 } ## end sub cgroup_mapping
+
+sub ip_to_if {
+	my $self = $_[0];
+	my $ip   = $_[1];
+
+	if ( !defined($ip) || ref($ip) ne '' ) {
+		return undef;
+	}
+
+	my $if = IO::Interface::Simple->new_from_address($ip);
+
+	if ( !defined($if) ) {
+		return undef;
+	}
+
+	return $if->name;
+} ## end sub ip_to_if
 
 =head1 AUTHOR
 
