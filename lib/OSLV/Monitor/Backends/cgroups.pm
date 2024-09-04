@@ -37,12 +37,20 @@ our $VERSION = '0.0.1';
 
 Initiates the backend object.
 
-    my $backend=OSLV::MOnitor::Backend::cgroups->new
+    my $backend=OSLV::MOnitor::Backend::cgroups->new(obj=>$obj)
+
+    - obj :: The OSLVM::Monitor object.
 
 =cut
 
 sub new {
 	my ( $blank, %opts ) = @_;
+
+	if ( !defined( $opts{obj} ) ) {
+		die('$opts{obj} is undef');
+	} elsif ( ref( $opts{obj} ) ne 'OSLV::Monitor' ) {
+		die('ref $opts{obj} is not OSLV::Monitor');
+	}
 
 	my $self = {
 		version         => 1,
@@ -53,6 +61,7 @@ sub new {
 		docker_mapping  => {},
 		docker_info     => {},
 		uid_mapping     => {},
+		obj             => $opts{obj},
 	};
 	bless $self;
 
@@ -61,7 +70,7 @@ sub new {
 
 =head2 run
 
-    $return_hash_ref=$backend->run;
+    $return_hash_ref=$backend->run(obj=>$obj);
 
 =cut
 
@@ -445,80 +454,84 @@ sub run {
 	foreach my $cgroup ( keys( %{ $self->{mappings} } ) ) {
 		my $name = $self->{mappings}{$cgroup};
 
-		$data->{oslvms}{$name} = clone($base_stats);
+		# only process this cgroup if the include check returns true, otherwise ignore it
+		if ( $self->{obj}->include($name) ) {
 
-		$data->{oslvms}{$name}{cpu_usage_per}  = $cgroups_percpu{$cgroup};
-		$data->{oslvms}{$name}{mem_usage_per}  = $cgroups_permem{$cgroup};
-		$data->{oslvms}{$name}{procs}          = $cgroups_procs{$cgroup};
-		$data->{totals}{procs}                 = $data->{totals}{procs} + $cgroups_procs{$cgroup};
-		$data->{oslvms}{$name}{rss}            = $cgroups_rss{$cgroup};
-		$data->{oslvms}{$name}{'virtual-size'} = $cgroups_vsize{$cgroup};
-		$data->{oslvms}{$name}{'text-size'}    = $cgroups_trs{$cgroup};
-		$data->{oslvms}{$name}{'data-size'}    = $cgroups_drs{$cgroup};
-		$data->{oslvms}{$name}{'size'}         = $cgroups_size{$cgroup};
+			$data->{oslvms}{$name} = clone($base_stats);
 
-		if ( $name =~ /^p\_/ || $name =~ /^d\_/ ) {
-			my $container_name = $name;
-			$container_name =~ s/^[pd]\_//;
-			if ( $name =~ /^p\_/ ) {
-				$data->{oslvms}{$name}{'ip'} = $self->{podman_info}{$container_name}{ip};
-			} elsif ( $name =~ /^d\_/ ) {
-				$data->{oslvms}{$name}{'ip'} = $self->{docker_info}{$container_name}{ip};
+			$data->{oslvms}{$name}{cpu_usage_per}  = $cgroups_percpu{$cgroup};
+			$data->{oslvms}{$name}{mem_usage_per}  = $cgroups_permem{$cgroup};
+			$data->{oslvms}{$name}{procs}          = $cgroups_procs{$cgroup};
+			$data->{totals}{procs}                 = $data->{totals}{procs} + $cgroups_procs{$cgroup};
+			$data->{oslvms}{$name}{rss}            = $cgroups_rss{$cgroup};
+			$data->{oslvms}{$name}{'virtual-size'} = $cgroups_vsize{$cgroup};
+			$data->{oslvms}{$name}{'text-size'}    = $cgroups_trs{$cgroup};
+			$data->{oslvms}{$name}{'data-size'}    = $cgroups_drs{$cgroup};
+			$data->{oslvms}{$name}{'size'}         = $cgroups_size{$cgroup};
+
+			if ( $name =~ /^p\_/ || $name =~ /^d\_/ ) {
+				my $container_name = $name;
+				$container_name =~ s/^[pd]\_//;
+				if ( $name =~ /^p\_/ ) {
+					$data->{oslvms}{$name}{'ip'} = $self->{podman_info}{$container_name}{ip};
+				} elsif ( $name =~ /^d\_/ ) {
+					$data->{oslvms}{$name}{'ip'} = $self->{docker_info}{$container_name}{ip};
+				}
 			}
-		}
 
-		my $base_dir = $cgroup;
-		$base_dir =~ s/^0\:\://;
-		$base_dir = '/sys/fs/cgroup' . $base_dir;
+			my $base_dir = $cgroup;
+			$base_dir =~ s/^0\:\://;
+			$base_dir = '/sys/fs/cgroup' . $base_dir;
 
-		my $cpu_stats_raw;
-		if ( -f $base_dir . '/cpu.stat' && -r $base_dir . '/cpu.stat' ) {
-			eval { $cpu_stats_raw = read_file( $base_dir . '/cpu.stat' ); };
-			if ( defined($cpu_stats_raw) ) {
-				my @cpu_stats_split = split( /\n/, $cpu_stats_raw );
-				foreach my $line (@cpu_stats_split) {
-					my ( $stat, $value ) = split( /\s+/, $line, 2 );
-					if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
-						$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
-						$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
-					}
-				}
-			} ## end if ( defined($cpu_stats_raw) )
-		} ## end if ( -f $base_dir . '/cpu.stat' && -r $base_dir...)
-
-		my $memory_stats_raw;
-		if ( -f $base_dir . '/memory.stat' && -r $base_dir . '/memory.stat' ) {
-			eval { $memory_stats_raw = read_file( $base_dir . '/memory.stat' ); };
-			if ( defined($memory_stats_raw) ) {
-				my @memory_stats_split = split( /\n/, $memory_stats_raw );
-				foreach my $line (@memory_stats_split) {
-					my ( $stat, $value ) = split( /\s+/, $line, 2 );
-					if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
-						$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
-						$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
-					}
-				}
-			} ## end if ( defined($memory_stats_raw) )
-		} ## end if ( -f $base_dir . '/memory.stat' && -r $base_dir...)
-
-		my $io_stats_raw;
-		if ( -f $base_dir . '/io.stat' && -r $base_dir . '/io.stat' ) {
-			eval { $io_stats_raw = read_file( $base_dir . '/io.stat' ); };
-			if ( defined($io_stats_raw) ) {
-				my @io_stats_split = split( /\n/, $io_stats_raw );
-				foreach my $line (@io_stats_split) {
-					my @line_split = split( /\s/, $line );
-					shift(@line_split);
-					foreach my $item (@line_split) {
-						my ( $stat, $value ) = split( /\=/, $line, 2 );
-						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9]+/ ) {
+			my $cpu_stats_raw;
+			if ( -f $base_dir . '/cpu.stat' && -r $base_dir . '/cpu.stat' ) {
+				eval { $cpu_stats_raw = read_file( $base_dir . '/cpu.stat' ); };
+				if ( defined($cpu_stats_raw) ) {
+					my @cpu_stats_split = split( /\n/, $cpu_stats_raw );
+					foreach my $line (@cpu_stats_split) {
+						my ( $stat, $value ) = split( /\s+/, $line, 2 );
+						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
 							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 							$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 						}
 					}
-				} ## end foreach my $line (@io_stats_split)
-			} ## end if ( defined($io_stats_raw) )
-		} ## end if ( -f $base_dir . '/io.stat' && -r $base_dir...)
+				} ## end if ( defined($cpu_stats_raw) )
+			} ## end if ( -f $base_dir . '/cpu.stat' && -r $base_dir...)
+
+			my $memory_stats_raw;
+			if ( -f $base_dir . '/memory.stat' && -r $base_dir . '/memory.stat' ) {
+				eval { $memory_stats_raw = read_file( $base_dir . '/memory.stat' ); };
+				if ( defined($memory_stats_raw) ) {
+					my @memory_stats_split = split( /\n/, $memory_stats_raw );
+					foreach my $line (@memory_stats_split) {
+						my ( $stat, $value ) = split( /\s+/, $line, 2 );
+						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
+							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
+							$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
+						}
+					}
+				} ## end if ( defined($memory_stats_raw) )
+			} ## end if ( -f $base_dir . '/memory.stat' && -r $base_dir...)
+
+			my $io_stats_raw;
+			if ( -f $base_dir . '/io.stat' && -r $base_dir . '/io.stat' ) {
+				eval { $io_stats_raw = read_file( $base_dir . '/io.stat' ); };
+				if ( defined($io_stats_raw) ) {
+					my @io_stats_split = split( /\n/, $io_stats_raw );
+					foreach my $line (@io_stats_split) {
+						my @line_split = split( /\s/, $line );
+						shift(@line_split);
+						foreach my $item (@line_split) {
+							my ( $stat, $value ) = split( /\=/, $line, 2 );
+							if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9]+/ ) {
+								$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
+								$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
+							}
+						}
+					} ## end foreach my $line (@io_stats_split)
+				} ## end if ( defined($io_stats_raw) )
+			} ## end if ( -f $base_dir . '/io.stat' && -r $base_dir...)
+		} ## end if ( $self->{obj}->include($name) )
 	} ## end foreach my $cgroup ( keys( %{ $self->{mappings}...}))
 
 	$data->{uid_mapping} = $self->{uid_mapping};
