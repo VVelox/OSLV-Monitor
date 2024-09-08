@@ -275,45 +275,58 @@ sub run {
 							&& ref( $inspect_parsed->[0] ) eq 'HASH'
 							&& defined( $inspect_parsed->[0]{NetworkSettings} )
 							&& ref( $inspect_parsed->[0]{NetworkSettings} ) eq 'HASH'
-							&& defined( $inspect_parsed->[0]{NetworkSettings}{IPAddress} )
-							&& ref( $inspect_parsed->[0]{NetworkSettings}{IPAddress} ) eq '' )
+							&& defined( $inspect_parsed->[0]{NetworkSettings}{Networks} )
+							&& ref( $inspect_parsed->[0]{NetworkSettings}{Networks} ) eq 'HASH' )
 						{
-							my $net_work_info = {
-								ip  => $inspect_parsed->[0]{NetworkSettings}{IPAddress},
-								gw  => undef,
-								mac => undef,
-								if  => undef,
-							};
-							if ( defined( $inspect_parsed->[0]{NetworkSettings}{Gateway} )
-								&& ref( $inspect_parsed->[0]{NetworkSettings}{Gateway} ) eq '' )
-							{
-								$net_work_info->{gw} = $inspect_parsed->[0]{NetworkSettings}{Gateway};
-							}
-							if ( defined( $inspect_parsed->[0]{NetworkSettings}{MacAddress} )
-								&& ref( $inspect_parsed->[0]{NetworkSettings}{MacAddress} ) eq '' )
-							{
-								$net_work_info->{mac} = $inspect_parsed->[0]{NetworkSettings}{MacAddress};
-							}
-							if ( defined( $inspect_parsed->[0]{NetworkSettings}{NetworkID} )
-								&& ref( $inspect_parsed->[0]{NetworkSettings}{NetworkID} ) eq '' )
-							{
-								my $network                = $inspect_parsed->[0]{NetworkSettings}{NetworkID};
-								my $network_inspect_output = `$cgroup_jank_type network inspect $network 2> /dev/null`;
-								my $network_inspect_parsed;
-								eval { $network_inspect_parsed = decode_json($network_inspect_output) };
-								if (   defined($network_inspect_parsed)
-									&& ref($network_inspect_parsed) eq 'ARRAY'
-									&& defined( $network_inspect_parsed->[0] )
-									&& ref( $network_inspect_parsed->[0] ) eq 'HASH'
-									&& defined( $network_inspect_parsed->[0]{network_interface} )
-									&& ref( $network_inspect_parsed->[0]{network_interface} ) eq '' )
+							my @podman_networks = keys( %{ $inspect_parsed->[0]{NetworkSettings}{Networks} } );
+							foreach my $network_to_process (@podman_networks) {
+								my $current_network
+									= $inspect_parsed->[0]{NetworkSettings}{Networks}{$network_to_process};
+								if (   ref($current_network) eq 'HASH'
+									&& ref( $current_network->{IPAddress} ) eq '' )
 								{
-									$net_work_info->{if} = $network_inspect_parsed->[0]{network_interface};
-								}
-							} ## end if ( defined( $inspect_parsed->[0]{NetworkSettings...}))
-							push( @{ $self->{ $cgroup_jank_type . '_info' }{ $pod->{Names}[0] }{ip} }, $net_work_info );
+									my $net_work_info = {
+										ip    => $current_network->{IPAddress},
+										gw    => undef,
+										gw_if => undef,
+										mac   => undef,
+										if    => undef,
+									};
+									if ( defined( $current_network->{Gateway} )
+										&& ref( $current_network->{Gateway} ) eq '' )
+									{
+										$net_work_info->{gw} = $current_network->{Gateway};
+									}
+									if ( defined( $current_network->{MacAddress} )
+										&& ref( $current_network->{MacAddress} ) eq '' )
+									{
+										$net_work_info->{mac} = $current_network->{MacAddress};
+									}
+									if ( defined( $current_network->{NetworkID} )
+										&& ref( $current_network->{NetworkID} ) eq '' )
+									{
+										my $network_id = $current_network->{NetworkID};
+										my $network_inspect_output
+											= `$cgroup_jank_type network inspect $network_id 2> /dev/null`;
+										my $network_inspect_parsed;
+										eval { $network_inspect_parsed = decode_json($network_inspect_output) };
+										if (   defined($network_inspect_parsed)
+											&& ref($network_inspect_parsed) eq 'ARRAY'
+											&& defined( $network_inspect_parsed->[0] )
+											&& ref( $network_inspect_parsed->[0] ) eq 'HASH'
+											&& defined( $network_inspect_parsed->[0]{network_interface} )
+											&& ref( $network_inspect_parsed->[0]{network_interface} ) eq '' )
+										{
+											$net_work_info->{if} = $network_inspect_parsed->[0]{network_interface};
+										}
+									} ## end if ( defined( $current_network->{NetworkID...}))
+									push(
+										@{ $self->{ $cgroup_jank_type . '_info' }{ $pod->{Names}[0] }{ip} },
+										$net_work_info
+									);
+								} ## end if ( ref($current_network) eq 'HASH' && ref...)
+							} ## end foreach my $network_to_process (@podman_networks)
 						} ## end if ( defined($inspect_parsed) && ref($inspect_parsed...))
-
 					} ## end if ( defined( $pod->{Id} ) && defined( $pod...))
 				} ## end foreach my $pod ( @{$podman_parsed} )
 			} ## end if ( defined($podman_parsed) && ref($podman_parsed...))
