@@ -320,6 +320,19 @@ sub run {
 											$net_work_info->{if} = $network_inspect_parsed->[0]{network_interface};
 										}
 									} ## end if ( defined( $current_network->{NetworkID...}))
+									if (defined($net_work_info->{if}) &&
+										defined($net_work_info->{ip})
+										) {
+										my $ip_r_g_output = `ip r g from $net_work_info->{ip} iif $net_work_info->{if} 8.8.8.8`;
+										if ($? == 0) {
+											my @ip_r_g_output_split = split(/\n/, $ip_r_g_output);
+											if (defined($ip_r_g_output_split[0])) {
+												$ip_r_g_output_split[0] =~ s/^.*[\ \t]+dev[\ \t]+//;
+												$ip_r_g_output_split[0] =~ s/[\ \t].*$//;
+												$net_work_info->{gw_if} = $ip_r_g_output_split[0];
+											}
+										}
+									}
 									push(
 										@{ $self->{ $cgroup_jank_type . '_info' }{ $pod->{Names}[0] }{ip} },
 										$net_work_info
