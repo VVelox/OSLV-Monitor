@@ -298,7 +298,7 @@ sub run {
 								&& ref( $inspect_parsed->[0]{NetworkSettings}{NetworkID} ) eq '' )
 							{
 								my $network                = $inspect_parsed->[0]{NetworkSettings}{NetworkID};
-								my $network_inspect_output = `podman networkinspect $network 2> /dev/null`;
+								my $network_inspect_output = `$cgroup_jank_type network inspect $network 2> /dev/null`;
 								my $network_inspect_parsed;
 								eval { $network_inspect_parsed = decode_json($network_inspect_output) };
 								if (   defined($network_inspect_parsed)
