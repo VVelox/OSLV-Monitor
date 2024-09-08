@@ -6,7 +6,7 @@ oslv_monitor - LibreNMS style JSON SNMP extend for OS level virtualization monit
 
 =head1 SYNOPSIS
 
-oslv_monitor [B<-c>] [B<-b> <backend>]
+oslv_monitor [B<-c>] [B<-b> <backend>] [B<-f> <config json>] [B<-q>]
 
 =head1 DESCRIPTION
 
@@ -33,6 +33,12 @@ Defaults are as below.
 
 Compress the output using gzip and base64 encoded so it
 can be transmitted via SNMP with out issue.
+
+/var/cache/oslv_monitor/snmp will always be available and compressed.
+
+=head2 -q
+
+Do not print the results.
 
 =cut
 
@@ -78,7 +84,6 @@ GetOptions(
 	'help'    => \$help,
 	'h'       => \$help,
 	'b=s'     => \$backend,
-	'o=s'     => \$base_dir,
 	'q'       => \$quiet,
 );
 
