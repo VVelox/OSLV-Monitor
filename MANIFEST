@@ -1,5 +1,8 @@
 Changes
+src_bin/oslv_monitor
 lib/OSLV/Monitor.pm
+lib/OSLV/Monitor/Backends/cgroups.pm
+lib/OSLV/Monitor/Backends/FreeBSD.pm
 Makefile.PL
 MANIFEST			This list of files
 README.md
