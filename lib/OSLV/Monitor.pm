@@ -68,27 +68,29 @@ sub new {
 		my @include = ('^.+$');
 		$opts{include} = \@include;
 	} else {
-		if (!defined($opts{include}[0])) {
+		if ( !defined( $opts{include}[0] ) ) {
 			$opts{include}[0] = '^.+$';
 		}
 
-		my $int;
-		while (defined($opts{include}[$int])) {
-			if (ref($opts{include}[$int]) ne '') {
-				die('ref for $opts{include}[' . $int . '] is ' . ref($opts{include}[$int]) . ' and not ""');
+		my $int = 0;
+		while ( defined( $opts{include}[$int] ) ) {
+			if ( ref( $opts{include}[$int] ) ne '' ) {
+				die( 'ref for $opts{include}[' . $int . '] is ' . ref( $opts{include}[$int] ) . ' and not ""' );
 			}
+			$int++;
 		}
-	}
+	} ## end else [ if ( !defined( $opts{include} ) ) ]
 
 	if ( !defined( $opts{exclude} ) ) {
 		my @exclude;
 		$opts{exclude} = \@exclude;
 	} else {
-		my $int;
-		while (defined($opts{exclude}[$int])) {
-			if (ref($opts{exclude}[$int]) ne '') {
-				die('ref for $opts{exclude}[' . $int . '] is ' . ref($opts{exclude}[$int]) . ' and not ""');
+		my $int = 0;
+		while ( defined( $opts{exclude}[$int] ) ) {
+			if ( ref( $opts{exclude}[$int] ) ne '' ) {
+				die( 'ref for $opts{exclude}[' . $int . '] is ' . ref( $opts{exclude}[$int] ) . ' and not ""' );
 			}
+			$int++;
 		}
 	}
 
@@ -186,37 +188,37 @@ sub run {
 	};
 } ## end sub run
 
-sub include{
+sub include {
 	my $self = $_[0];
 	my $name = $_[1];
 
 	# return undef if any of these are true
-	if (!defined($name)) {
+	if ( !defined($name) ) {
 		return 0;
-	} elsif (ref($name) ne '') {
+	} elsif ( ref($name) ne '' ) {
 		return 0;
-	} elsif ($name eq '') {
+	} elsif ( $name eq '' ) {
 		return 0;
 	}
 
 	# look for mathcing includes
-	foreach my $item (@{$self->{include}}) {
+	foreach my $item ( @{ $self->{include} } ) {
 		# check if it matches
-		if ($name =~ /$item/) {
+		if ( $name =~ /$item/ ) {
 			# if we got a match check for excludes
-			foreach my $item (@{$self->{exclude}}) {
-				if ($name =~ /$item/) {
-					return 0
+			foreach my $item ( @{ $self->{exclude} } ) {
+				if ( $name =~ /$item/ ) {
+					return 0;
 				}
 			}
 			# if we get here it should means a include matched and no excludes matched
 			return 1;
-		}
-	}
+		} ## end if ( $name =~ /$item/ )
+	} ## end foreach my $item ( @{ $self->{include} } )
 
 	# if we get here it should mean no includes matched
 	return 0;
-}
+} ## end sub include
 
 =head1 AUTHOR
 
