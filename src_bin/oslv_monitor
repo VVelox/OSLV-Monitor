@@ -1,8 +1,27 @@
 #!perl
 
+use JSON;
+use strict;
+use warnings;
+use Getopt::Long;
+use JSON;
+use OSLV::Monitor;
+use MIME::Base64;
+use IO::Compress::Gzip qw(gzip $GzipError);
+use File::Slurp;
+use Pod::Usage;
+
 =head1 NAME
 
 oslv_monitor - LibreNMS style JSON SNMP extend for OS level virtualization monitoring
+
+=head1 VERSION
+
+0.0.1
+
+=cut
+
+our $VERSION = '0.0.1';
 
 =head1 SYNOPSIS
 
@@ -42,33 +61,13 @@ Do not print the results.
 
 =cut
 
-use JSON;
-use strict;
-use warnings;
-use Getopt::Long;
-use JSON;
-use OSLV::Monitor;
-use MIME::Base64;
-use IO::Compress::Gzip qw(gzip $GzipError);
-use File::Slurp;
-
-sub version {
-	print "oslv_monitor v. 0.0.1\n";
+sub main::VERSION_MESSAGE {
+	print "oslv_monitor v. $VERSION\n";
 }
 
-sub help {
-	&version;
-
-	print '
--b <backend>    The backend to use.
-
--c              gzip the json and then base64 encode it
-
-Backends include by default...
-FreeBSD - Default on FreeBSD
-cgroups - Default on Linux
-';
-} ## end sub help
+sub main::HELP_MESSAGE {
+	pod2usage( -exitval => 255, -verbose => 2, -output => \*STDOUT, );
+}
 
 # get the commandline options
 my $help     = 0;
@@ -76,6 +75,9 @@ my $version  = 0;
 my $base_dir = '/var/cache/oslv_monitor';
 my $quiet;
 my $backend;
+my $exclude;
+my $include;
+my $config_file = '/usr/local/etc/oslv_monitor.json';
 Getopt::Long::Configure('no_ignore_case');
 Getopt::Long::Configure('bundling');
 GetOptions(
@@ -87,7 +89,38 @@ GetOptions(
 	'q'       => \$quiet,
 );
 
-my $monitor = OSLV::Monitor->new( backend => $backend, base_dir => $base_dir, );
+if ($version) {
+	&main::VERSION_MESSAGE;
+	exit 1;
+}
+
+if ($help) {
+	&main::HELP_MESSAGE;
+	exit 1;
+}
+
+if ( -f $config_file ) {
+	eval {
+		my $raw_config    = read_file($config_file);
+		my $parsed_config = decode_json($raw_config);
+		if ( !defined($backend) && defined( $parsed_config->{backend} ) && ref( $parsed_config->{backend} ) eq '' )
+		{
+			$backend = $parsed_config->{backend};
+		}
+		if ( defined( $parsed_config->{include} ) && ref( $parsed_config->{include} ) eq '' ) {
+			$include = $parsed_config->{include};
+		}
+		if ( defined( $parsed_config->{exclude} ) && ref( $parsed_config->{exclude} ) eq '' ) {
+			$exclude = $parsed_config->{exclude};
+		}
+	};
+	if ($@) {
+		die( 'Failed to read the config "' . $config_file . '" ... ' . $@ );
+	}
+} ## end if ( -f $config_file )
+
+my $monitor
+	= OSLV::Monitor->new( backend => $backend, base_dir => $base_dir, include => $include, exclude => $exclude );
 
 if ( !-d $base_dir ) {
 	mkdir($base_dir) || die( 'Unable to mkdir "' . $base_dir . '"' );
