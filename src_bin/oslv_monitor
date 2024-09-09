@@ -107,10 +107,10 @@ if ( -f $config_file ) {
 		{
 			$backend = $parsed_config->{backend};
 		}
-		if ( defined( $parsed_config->{include} ) && ref( $parsed_config->{include} ) eq '' ) {
+		if ( defined( $parsed_config->{include} ) && ref( $parsed_config->{include} ) eq 'ARRAY' ) {
 			$include = $parsed_config->{include};
 		}
-		if ( defined( $parsed_config->{exclude} ) && ref( $parsed_config->{exclude} ) eq '' ) {
+		if ( defined( $parsed_config->{exclude} ) && ref( $parsed_config->{exclude} ) eq 'ARRAY' ) {
 			$exclude = $parsed_config->{exclude};
 		}
 	};
