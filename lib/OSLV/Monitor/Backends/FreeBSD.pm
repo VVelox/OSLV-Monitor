@@ -32,6 +32,8 @@ our $VERSION = '0.0.1';
         $return_hash_ref=$backend->run;
     }
 
+The stats names match those produced by "ps --libxo json".
+
 =head2 METHODS
 
 =head2 new
