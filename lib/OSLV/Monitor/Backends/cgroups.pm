@@ -10,7 +10,7 @@ use IO::Interface::Simple;
 
 =head1 NAME
 
-OSLV::Monitor::Backends::cgroups - backend for Linux cgroups.
+OSLV::Monitor::Backends::cgroups - Backend for Linux cgroups.
 
 =head1 VERSION
 
@@ -30,6 +30,38 @@ our $VERSION = '0.0.1';
     if ( $usable ){
         $return_hash_ref=$backend->run;
     }
+
+The cgroup to name mapping is done like below.
+
+    systemd -> s_$name
+    user -> u_$name
+    docker -> d_$name
+    podman -> p_$name
+    anything else -> $name
+
+Anything else is formed like below.
+
+	$cgroup =~ s/^0\:\:\///;
+    $cgroup =~ s/\/.*//;
+
+The following ps to stats mapping are as below.
+
+    %cpu -> cpu_usage_per
+    %mem -> mem_usage_per
+    rss -> rss
+    vsize -> virtual-size
+    trs -> text-size
+    drs -> data-size
+    size -> size
+
+"procs" is a total number of procs in that cgroup.
+
+The rest of the values are pulled from the following files with
+the names kept as is.
+
+    cpu.stat
+    io.stat
+    memory.stat
 
 =head2 METHODS
 
@@ -320,19 +352,20 @@ sub run {
 											$net_work_info->{if} = $network_inspect_parsed->[0]{network_interface};
 										}
 									} ## end if ( defined( $current_network->{NetworkID...}))
-									if (defined($net_work_info->{if}) &&
-										defined($net_work_info->{ip})
-										) {
-										my $ip_r_g_output = `ip r g from $net_work_info->{ip} iif $net_work_info->{if} 8.8.8.8`;
-										if ($? == 0) {
-											my @ip_r_g_output_split = split(/\n/, $ip_r_g_output);
-											if (defined($ip_r_g_output_split[0])) {
+									if (   defined( $net_work_info->{if} )
+										&& defined( $net_work_info->{ip} ) )
+									{
+										my $ip_r_g_output
+											= `ip r g from $net_work_info->{ip} iif $net_work_info->{if} 8.8.8.8`;
+										if ( $? == 0 ) {
+											my @ip_r_g_output_split = split( /\n/, $ip_r_g_output );
+											if ( defined( $ip_r_g_output_split[0] ) ) {
 												$ip_r_g_output_split[0] =~ s/^.*[\ \t]+dev[\ \t]+//;
 												$ip_r_g_output_split[0] =~ s/[\ \t].*$//;
 												$net_work_info->{gw_if} = $ip_r_g_output_split[0];
 											}
 										}
-									}
+									} ## end if ( defined( $net_work_info->{if} ) && defined...)
 									push(
 										@{ $self->{ $cgroup_jank_type . '_info' }{ $pod->{Names}[0] }{ip} },
 										$net_work_info
@@ -529,10 +562,6 @@ sub usable {
 
 	return 1;
 } ## end sub usable
-
-=head2 cgroup_mapping
-
-=cut
 
 sub cgroup_mapping {
 	my $self        = $_[0];
