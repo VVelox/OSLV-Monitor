@@ -25,7 +25,7 @@ our $VERSION = '0.0.1';
 
 =head1 SYNOPSIS
 
-oslv_monitor [B<-c>] [B<-b> <backend>] [B<-f> <config json>] [B<-q>]
+oslv_monitor [B<-c>] [B<-f> <config file>] [B<-f> <config json>] [B<-q>]
 
 =head1 DESCRIPTION
 
@@ -39,15 +39,6 @@ For snmpd...
 
 =head1 FLAGS
 
-=head2 -b <backend>
-
-The backend to use.
-
-Defaults are as below.
-
-    FreeBSD: FreeBSD
-    Linux: cgroups
-
 =head2 -c
 
 Compress the output using gzip and base64 encoded so it
@@ -55,9 +46,38 @@ can be transmitted via SNMP with out issue.
 
 /var/cache/oslv_monitor/snmp will always be available and compressed.
 
+=head2 -f <file>
+
+The config file to use.
+
+Default :: /usr/local/etc/oslv_monitor.json
+
 =head2 -q
 
 Do not print the results.
+
+=head1 CONFIG FILE
+
+The following keys are used in the JSON config file.
+
+    - include :: A array of regular expressions to include.
+        Default :: ["^.*$"]
+
+    - exlcude :: A array of regular expressions to exlclude.
+        Default :: undef
+
+    - backend :: Override the the backend and automatically choose it.
+
+By Defaults the backends are as below.
+
+    FreeBSD: FreeBSD
+    Linux: cgroups
+
+Default would be like this.
+
+    {
+        "include": ["^.*$"]
+    }
 
 =cut
 
@@ -85,8 +105,8 @@ GetOptions(
 	'v'       => \$version,
 	'help'    => \$help,
 	'h'       => \$help,
-	'b=s'     => \$backend,
 	'q'       => \$quiet,
+	'f=s'     => \$config_file,
 );
 
 if ($version) {
