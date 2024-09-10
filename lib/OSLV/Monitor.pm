@@ -6,7 +6,7 @@ use warnings;
 
 =head1 NAME
 
-OSLV::Monitor - OS level virtualization monitoring extend.
+OSLV::Monitor - OS level virtualization monitoring extend for LibreNMS.
 
 =head1 VERSION
 
@@ -25,7 +25,17 @@ Perhaps a little code snippet.
     use OSLV::Monitor;
 
     my $monitor = OSLV::Monitor->new();
-    ...
+
+    eval { $monitor->load; };
+    if ($@) {
+        print encode_json( { version => 1, data => {}, error => 1, errorString => 'load failed... ' . $@ } ) . "\n";
+        exit 1;
+    }
+
+    my $data = encode_json( $monitor->run );
+
+    print $data."\n";
+
 
 =head2 METHODS
 
