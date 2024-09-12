@@ -15,11 +15,11 @@ OSLV::Monitor::Backends::FreeBSD - backend for FreeBSD jails
 
 =head1 VERSION
 
-Version 0.0.1
+Version 0.0.2
 
 =cut
 
-our $VERSION = '0.0.1';
+our $VERSION = '0.0.2';
 
 =head1 SYNOPSIS
 
@@ -372,17 +372,13 @@ sub run {
 		'signals-taken'                => 1,
 	};
 
-	if (   defined($ps)
-		&& ref($ps) eq 'HASH'
-		&& defined( $ps->{'process-information'} )
-		&& ref( $ps->{'process-information'} ) eq 'HASH'
-		&& defined( $ps->{'process-information'}{process} )
-		&& ref( $ps->{'process-information'}{process} ) eq 'ARRAY' )
-	{
-		foreach my $proc ( @{ $ps->{'process-information'}{process} } ) {
-			# - means there is no jail
-			# if it is not defined it means it was previously not included
-			if ( $proc->{'jail-name'} ne '-' && defined( $data->{oslvms}{ $proc->{'jail-name'} } ) ) {
+	foreach my $jail (@found_jails) {
+		$output
+			= `/bin/ps a --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command,jid,nsigs -J $jail 2> /dev/null`;
+		my $ps;
+		eval { $ps = decode_json($output); };
+		if ( !$@ ) {
+			foreach my $proc ( @{ $ps->{'process-information'}{process} } ) {
 				my $cache_name
 					= $proc->{pid} . '-'
 					. $proc->{uid} . '-'
@@ -434,15 +430,14 @@ sub run {
 				$data->{totals}{procs}++;
 
 				$new_proc_cache->{$cache_name} = $proc;
-			} ## end if ( $proc->{'jail-name'} ne '-' && defined...)
-		} ## end foreach my $proc ( @{ $ps->{'process-information'...}})
-	} ## end if ( defined($ps) && ref($ps) eq 'HASH' &&...)
+			} ## end foreach my $proc ( @{ $ps->{'process-information'...}})
+		} ## end if ( !$@ )
+	} ## end foreach my $jail (@found_jails)
 
 	# save the proc cache for next run
 	eval { write_file( $self->{proc_cache}, encode_json($new_proc_cache) ); };
 	if ($@) {
 		push( @{ $data->{errors} }, 'saving proc cache failed, "' . $self->{proc_cache} . '"... ' . $@ );
-		return $data;
 	}
 
 	return $data;
