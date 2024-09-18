@@ -158,9 +158,31 @@ sub run {
 		'path'                         => [],
 	};
 
-	# get a list of jails
-	my $output = `/usr/sbin/jls --libxo json 2> /dev/null`;
+	# get a list of jails for jid to name mapping
+	my $output = `/usr/sbin/jls -s --libxo json 2> /dev/null`;
 	my $jls;
+	my %jid_to_name;
+	eval { $jls = decode_json($output) };
+	if ($@) {
+		push( @{ $data->{errors} }, 'decoding output from "jls -s --libxo json 2> /dev/null" failed... ' . $@ );
+		return $data;
+	}
+	if (   defined($jls)
+		&& ref($jls) eq 'HASH'
+		&& defined( $jls->{'jail-information'} )
+		&& ref( $jls->{'jail-information'} ) eq 'HASH'
+		&& defined( $jls->{'jail-information'}{jail} )
+		&& ref( $jls->{'jail-information'}{jail} ) eq 'ARRAY' )
+	{
+		foreach my $jls_jail ( @{ $jls->{'jail-information'}{jail} } ) {
+			if (defined($jls_jail->{name}) && defined($jls_jail->{jid})) {
+				$jid_to_name{$jls_jail->{jid}} = $jls_jail->{name};
+			}
+		}
+	}
+
+	# get a list of jails
+	$output = `/usr/sbin/jls --libxo json 2> /dev/null`;
 	eval { $jls = decode_json($output) };
 	if ($@) {
 		push( @{ $data->{errors} }, 'decoding output from "jls --libxo json 2> /dev/null" failed... ' . $@ );
@@ -175,14 +197,14 @@ sub run {
 	{
 		my @IP_keys = ( 'ipv4', 'ipv6' );
 		foreach my $jls_jail ( @{ $jls->{'jail-information'}{jail} } ) {
-			# only process this jail if the include check returns true, otherwise ignore it
-			if ( $self->{obj}->include( $jls_jail->{'hostname'} ) ) {
-				if ( !defined( $data->{oslvms}{ $jls_jail->{'hostname'} } ) ) {
-					$data->{oslvms}{ $jls_jail->{'hostname'} } = clone($base_stats);
-				}
-				push( @{ $data->{oslvms}{ $jls_jail->{'hostname'} }{path} }, $jls_jail->{path} );
+			my $jname = $jid_to_name{ $jls_jail->{jid} };
 
-				my $jname = $jls_jail->{'hostname'};
+			# only process this jail if the include check returns true, otherwise ignore it
+			if ( $self->{obj}->include( $jname ) ) {
+				if ( !defined( $data->{oslvms}{ $jname } ) ) {
+					$data->{oslvms}{ $jname } = clone($base_stats);
+				}
+				push( @{ $data->{oslvms}{ $jname }{path} }, $jls_jail->{path} );
 
 				my $ipv4_gw    = undef;
 				my $ipv4_gw_if = undef;
@@ -203,7 +225,7 @@ sub run {
 							&& defined( $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'}[0] ) )
 						{
 							foreach
-								my $family ( @{ $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} } )
+							my $family ( @{ $netstat_raw_parsed->{statistics}{'route-table'}{'rt-family'} } )
 							{
 								if (   ref( $family->{'address-family'} ) eq ''
 									&& ref( $family->{'rt-entry'} ) eq 'ARRAY'
@@ -343,15 +365,6 @@ sub run {
 		'written-blocks',               'signals-taken',
 	);
 
-	$output
-		= `/bin/ps a --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command,jid,nsigs 2> /dev/null`;
-	my $ps;
-	eval { $ps = decode_json($output); };
-	if ($@) {
-		push( @{ $data->{errors} }, 'decoding output from ps failed... ' . $@ );
-		return $data;
-	}
-
 	# values that are time stats that require additional processing
 	my $times = { 'cpu-time' => 1, 'system-time' => 1, 'user-time' => 1, };
 	# these are counters and differences needed computed for them
@@ -416,17 +429,17 @@ sub run {
 						} else {
 							$stat_value = $proc->{$stat} / 300;
 						}
-						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
-							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $stat_value;
+						$data->{oslvms}{ $jail }{$stat}
+							= $data->{oslvms}{ $jail }{$stat} + $stat_value;
 						$data->{totals}{$stat} = $data->{totals}{$stat} + $stat_value;
 					} else {
-						$data->{oslvms}{ $proc->{'jail-name'} }{$stat}
-							= $data->{oslvms}{ $proc->{'jail-name'} }{$stat} + $proc->{$stat};
+						$data->{oslvms}{ $jail }{$stat}
+							= $data->{oslvms}{ $jail }{$stat} + $proc->{$stat};
 						$data->{totals}{$stat} = $data->{totals}{$stat} + $proc->{$stat};
 					}
 				} ## end foreach my $stat (@stats)
 
-				$data->{oslvms}{ $proc->{'jail-name'} }{procs}++;
+				$data->{oslvms}{ $jail }{procs}++;
 				$data->{totals}{procs}++;
 
 				$new_proc_cache->{$cache_name} = $proc;
