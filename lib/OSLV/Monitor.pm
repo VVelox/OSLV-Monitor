@@ -52,6 +52,9 @@ The keys are list as below.
         freebsd :: FreeBSD
         linux :: cgroups
 
+    - base_dir :: The dir to use for any caches as well as output.
+        Default :: /var/cache/oslv_monitor
+
     - include :: An array of regexps to match names against for seeing if they should
             be included or not. By default everything is return.
         - Default :: ['^.*$']
@@ -106,6 +109,10 @@ sub new {
 
 	if ( !defined( $opts{base_dir} ) ) {
 		$opts{base_dir} = '/var/cache/oslv_monitor';
+	}
+
+	if (!-d $opts{base_dir}) {
+		mkdir($opts{base_dir}) || die($opts{base_dir}.' was not a directory and could not be created');
 	}
 
 	my $self = {

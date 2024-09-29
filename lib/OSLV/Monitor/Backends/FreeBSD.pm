@@ -328,7 +328,7 @@ sub run {
 
 	foreach my $jail (@found_jails) {
 		$output
-			= `/bin/ps a --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command,jid,nsigs -J $jail 2> /dev/null`;
+			= `/bin/ps ax --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command,nsigs -J $jail 2> /dev/null`;
 		my $ps;
 		eval { $ps = decode_json($output); };
 		if ( !$@ ) {
@@ -337,7 +337,7 @@ sub run {
 					= $proc->{pid} . '-'
 					. $proc->{uid} . '-'
 					. $proc->{gid} . '-'
-					. $proc->{'jail-id'} . '-'
+					. $jail . '-'
 					. $proc->{command};
 
 				foreach my $stat (@stats) {
