@@ -360,6 +360,7 @@ sub run {
 								$seconds = $seconds + ( 60 * $time_split[1] ) + $time_split[1];
 							}
 							$stat_value = $seconds;
+							$proc->{$stat}=$stat_value;
 						} ## end if ( $times->{$stat} )
 
 						if ( looks_like_number($stat_value) ) {
