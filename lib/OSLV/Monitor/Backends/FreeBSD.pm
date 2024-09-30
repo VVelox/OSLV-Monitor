@@ -6,7 +6,8 @@ use warnings;
 use JSON;
 use Clone 'clone';
 use File::Slurp;
-use List::Util qw( uniq );
+use List::Util   qw( uniq );
+use Scalar::Util qw(looks_like_number);
 
 =head1 NAME
 
@@ -334,49 +335,57 @@ sub run {
 		if ( !$@ ) {
 			foreach my $proc ( @{ $ps->{'process-information'}{process} } ) {
 				my $cache_name
-					= $proc->{pid} . '-'
-					. $proc->{uid} . '-'
-					. $proc->{gid} . '-'
-					. $jail . '-'
-					. $proc->{command};
+					= $proc->{pid} . '-' . $proc->{uid} . '-' . $proc->{gid} . '-' . $jail . '-' . $proc->{command};
 
 				foreach my $stat (@stats) {
+					if ( !defined( $data->{oslvms}{$jail}{$stat} ) ) {
+						$data->{oslvms}{$jail}{$stat} = 0;
+					}
+					if ( !defined( $data->{totals}{$stat} ) ) {
+						$data->{totals}{$stat} = 0;
+					}
+
+					my $stat_value = $proc->{$stat};
 					# pre-process the stat if it is a time value that requires it
-					if ( defined( $times->{$stat} ) ) {
+					if ( $times->{$stat} ) {
 						# [days-][hours:]minutes:seconds
 						my $seconds = 0;
-						my $time    = $proc->{$stat};
+						my $time    = $stat_value;
 
 						if ( $time =~ /-/ ) {
 							my $days = $time;
 							$days =~ s/\-.*$//;
+							$time =~ s/^.*\-//;
 							$seconds = $seconds + ( $days * 86400 );
-						} else {
-							my @time_split = split( /\:/, $time );
-							if ( defined( $time_split[2] ) ) {
-								$seconds
-									= $seconds + ( 3600 * $time_split[0] ) + ( 60 * $time_split[1] ) + $time_split[2];
-							} else {
-								$seconds = $seconds + ( 60 * $time_split[1] ) + $time_split[1];
-							}
 						}
-						$proc->{$stat} = $seconds;
-					} ## end if ( defined( $times->{$stat} ) )
+						my @time_split = split( /\:/, $time );
+						if ( defined( $time_split[2] ) ) {
+							$seconds
+								= $seconds + ( 3600 * $time_split[0] ) + ( 60 * $time_split[1] ) + $time_split[2];
+						} else {
+							$seconds = $seconds + ( 60 * $time_split[1] ) + $time_split[1];
+						}
+						$stat_value = $seconds;
+					} ## end if ( $times->{$stat} )
 
-					if ( $counters->{$stat} ) {
-						my $stat_value;
-						if ( defined( $proc_cache->{$cache_name} ) && defined( $proc_cache->{$cache_name}{$stat} ) ) {
-							$stat_value = ( $proc->{$stat} - $proc_cache->{$cache_name}{$stat} ) / 300;
+					if ( looks_like_number($stat_value) ) {
+						if ( $counters->{$stat} ) {
+							if ( defined( $proc_cache->{$cache_name} ) && defined( $proc_cache->{$cache_name}{$stat} ) )
+							{
+								$stat_value = ( $stat_value - $proc_cache->{$cache_name}{$stat} ) / 300;
+							} else {
+								$stat_value = $stat_value / 300;
+							}
+							$data->{oslvms}{$jail}{$stat}
+								= $data->{oslvms}{$jail}{$stat} + $stat_value;
+							$data->{totals}{$stat} = $data->{totals}{$stat} + $stat_value;
 						} else {
-							$stat_value = $proc->{$stat} / 300;
+							$data->{oslvms}{$jail}{$stat}
+								= $data->{oslvms}{$jail}{$stat} + $stat_value;
+							$data->{totals}{$stat} = $data->{totals}{$stat} + $stat_value;
 						}
-						$data->{oslvms}{$jail}{$stat}
-							= $data->{oslvms}{$jail}{$stat} + $stat_value;
-						$data->{totals}{$stat} = $data->{totals}{$stat} + $stat_value;
 					} else {
-						$data->{oslvms}{$jail}{$stat}
-							= $data->{oslvms}{$jail}{$stat} + $proc->{$stat};
-						$data->{totals}{$stat} = $data->{totals}{$stat} + $proc->{$stat};
+						warn( '"' . $stat_value . '" for ' . $stat . ' does not appear numeric' );
 					}
 				} ## end foreach my $stat (@stats)
 
