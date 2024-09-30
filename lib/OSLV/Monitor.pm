@@ -10,11 +10,11 @@ OSLV::Monitor - OS level virtualization monitoring extend for LibreNMS.
 
 =head1 VERSION
 
-Version 0.0.2
+Version 0.1.0
 
 =cut
 
-our $VERSION = '0.0.2';
+our $VERSION = '0.1.0';
 
 =head1 SYNOPSIS
 

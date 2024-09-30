@@ -17,11 +17,11 @@ oslv_monitor - LibreNMS style JSON SNMP extend for OS level virtualization monit
 
 =head1 VERSION
 
-0.0.1
+0.1.0
 
 =cut
 
-our $VERSION = '0.0.1';
+our $VERSION = '0.1.0';
 
 =head1 SYNOPSIS
 
