@@ -334,65 +334,61 @@ sub run {
 		eval { $ps = decode_json($output); };
 		if ( !$@ ) {
 			foreach my $proc ( @{ $ps->{'process-information'}{process} } ) {
-				my $cache_name
-					= $proc->{pid} . '-' . $proc->{uid} . '-' . $proc->{gid} . '-' . $jail . '-' . $proc->{command};
+				if ( $proc->{'elapsed-times'} ne '-' ) {
+					my $cache_name
+						= $proc->{pid} . '-' . $proc->{uid} . '-' . $proc->{gid} . '-' . $jail . '-' . $proc->{command};
 
-				foreach my $stat (@stats) {
-					if ( !defined( $data->{oslvms}{$jail}{$stat} ) ) {
-						$data->{oslvms}{$jail}{$stat} = 0;
-					}
-					if ( !defined( $data->{totals}{$stat} ) ) {
-						$data->{totals}{$stat} = 0;
-					}
+					foreach my $stat (@stats) {
+						my $stat_value = $proc->{$stat};
+						# pre-process the stat if it is a time value that requires it
+						if ( $times->{$stat} ) {
+							# [days-][hours:]minutes:seconds
+							my $seconds = 0;
+							my $time    = $stat_value;
 
-					my $stat_value = $proc->{$stat};
-					# pre-process the stat if it is a time value that requires it
-					if ( $times->{$stat} ) {
-						# [days-][hours:]minutes:seconds
-						my $seconds = 0;
-						my $time    = $stat_value;
-
-						if ( $time =~ /-/ ) {
-							my $days = $time;
-							$days =~ s/\-.*$//;
-							$time =~ s/^.*\-//;
-							$seconds = $seconds + ( $days * 86400 );
-						}
-						my @time_split = split( /\:/, $time );
-						if ( defined( $time_split[2] ) ) {
-							$seconds
-								= $seconds + ( 3600 * $time_split[0] ) + ( 60 * $time_split[1] ) + $time_split[2];
-						} else {
-							$seconds = $seconds + ( 60 * $time_split[1] ) + $time_split[1];
-						}
-						$stat_value = $seconds;
-					} ## end if ( $times->{$stat} )
-
-					if ( looks_like_number($stat_value) ) {
-						if ( $counters->{$stat} ) {
-							if ( defined( $proc_cache->{$cache_name} ) && defined( $proc_cache->{$cache_name}{$stat} ) )
-							{
-								$stat_value = ( $stat_value - $proc_cache->{$cache_name}{$stat} ) / 300;
-							} else {
-								$stat_value = $stat_value / 300;
+							if ( $time =~ /-/ ) {
+								my $days = $time;
+								$days =~ s/\-.*$//;
+								$time =~ s/^.*\-//;
+								$seconds = $seconds + ( $days * 86400 );
 							}
-							$data->{oslvms}{$jail}{$stat}
-								= $data->{oslvms}{$jail}{$stat} + $stat_value;
-							$data->{totals}{$stat} = $data->{totals}{$stat} + $stat_value;
+							my @time_split = split( /\:/, $time );
+							if ( defined( $time_split[2] ) ) {
+								$seconds
+									= $seconds + ( 3600 * $time_split[0] ) + ( 60 * $time_split[1] ) + $time_split[2];
+							} else {
+								$seconds = $seconds + ( 60 * $time_split[1] ) + $time_split[1];
+							}
+							$stat_value = $seconds;
+						} ## end if ( $times->{$stat} )
+
+						if ( looks_like_number($stat_value) ) {
+							if ( $counters->{$stat} ) {
+								if (   defined( $proc_cache->{$cache_name} )
+									&& defined( $proc_cache->{$cache_name}{$stat} ) )
+								{
+									$stat_value = ( $stat_value - $proc_cache->{$cache_name}{$stat} ) / 300;
+								} else {
+									$stat_value = $stat_value / 300;
+								}
+								$data->{oslvms}{$jail}{$stat}
+									= $data->{oslvms}{$jail}{$stat} + $stat_value;
+								$data->{totals}{$stat} = $data->{totals}{$stat} + $stat_value;
+							} else {
+								$data->{oslvms}{$jail}{$stat}
+									= $data->{oslvms}{$jail}{$stat} + $stat_value;
+								$data->{totals}{$stat} = $data->{totals}{$stat} + $stat_value;
+							}
 						} else {
-							$data->{oslvms}{$jail}{$stat}
-								= $data->{oslvms}{$jail}{$stat} + $stat_value;
-							$data->{totals}{$stat} = $data->{totals}{$stat} + $stat_value;
+							warn( '"' . $stat_value . '" for ' . $stat . ' does not appear numeric' );
 						}
-					} else {
-						warn( '"' . $stat_value . '" for ' . $stat . ' does not appear numeric' );
-					}
-				} ## end foreach my $stat (@stats)
+					} ## end foreach my $stat (@stats)
 
-				$data->{oslvms}{$jail}{procs}++;
-				$data->{totals}{procs}++;
+					$data->{oslvms}{$jail}{procs}++;
+					$data->{totals}{procs}++;
 
-				$new_proc_cache->{$cache_name} = $proc;
+					$new_proc_cache->{$cache_name} = $proc;
+				} ## end if ( $proc->{'elapsed-times'} ne '-' )
 			} ## end foreach my $proc ( @{ $ps->{'process-information'...}})
 		} ## end if ( !$@ )
 	} ## end foreach my $jail (@found_jails)
