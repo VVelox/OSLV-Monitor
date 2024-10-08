@@ -1,7 +1,8 @@
 Revision history for OSLV-Monitor
 
 1.0.0   ?/?
-        - Rename a few cgroup stats to match FreeBSD
+        - Rename a few cgroup stats to match FreeBSD.
+        - Add etimes for cgroups.
 
 0.1.0   2024-09-30/16:00
         - Add -b for setting output/cache base path
