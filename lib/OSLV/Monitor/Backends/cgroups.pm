@@ -393,10 +393,11 @@ sub run {
 	# gets of procs for finding a list of containers
 	#
 	my $ps_output = `ps -haxo pid,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
-	if ( $? != 0 ) {
-		$self->{cgroupns_usable} = 0;
-		$ps_output = `ps -haxo pid,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
-	}
+	# just skipping cgroupns so not needed as it is a bit useless
+	#	if ( $? != 0 ) {
+	#		$self->{cgroupns_usable} = 0;
+	#		$ps_output = `ps -haxo pid,%cpu,%mem,rss,vsize,trs,drs,size,etimes,cgroup 2> /dev/null`;
+	#	}
 	my @ps_output_split = split( /\n/, $ps_output );
 	my %found_cgroups;
 	my %cgroups_percpu;
@@ -407,15 +408,16 @@ sub run {
 	my %cgroups_trs;
 	my %cgroups_drs;
 	my %cgroups_size;
+	my %cgroups_etimes;
 
 	foreach my $line (@ps_output_split) {
 		$line =~ s/^\s+//;
-		my ( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup );
-		if ( $self->{cgroupns_usable} ) {
-			( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
-		} else {
-			( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
-		}
+		my ( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup );
+		#		if ( $self->{cgroupns_usable} ) {
+		#			( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup ) = split( /\s+/, $line );
+		#		} else {
+		( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup ) = split( /\s+/, $line );
+		#		}
 		if ( $cgroup =~ /^0\:\:\// ) {
 			$found_cgroups{$cgroup}           = $cgroup;
 			$data->{totals}{'percent-cpu'}    = $data->{totals}{'percent-cpu'} + $percpu;
@@ -425,6 +427,7 @@ sub run {
 			$data->{totals}{'text-size'}      = $data->{totals}{'text-size'} + $trs;
 			$data->{totals}{'data-size'}      = $data->{totals}{'data-size'} + $drs;
 			$data->{totals}{'size'}           = $data->{totals}{'size'} + $size;
+			$data->{totals}{'elapsed-times'}  = $data->{totals}{'elapsed-times'} + $etimes;
 
 			if ( !defined( $cgroups_permem{$cgroup} ) ) {
 				$cgroups_permem{$cgroup} = $permem;
@@ -435,15 +438,17 @@ sub run {
 				$cgroups_trs{$cgroup}    = $trs;
 				$cgroups_drs{$cgroup}    = $drs;
 				$cgroups_size{$cgroup}   = $size;
+				$cgroups_etimes{$cgroup} = $etimes;
 			} else {
 				$cgroups_permem{$cgroup} = $cgroups_permem{$cgroup} + $permem;
 				$cgroups_percpu{$cgroup} = $cgroups_percpu{$cgroup} + $percpu;
 				$cgroups_procs{$cgroup}++;
-				$cgroups_rss{$cgroup}   = $cgroups_rss{$cgroup} + $rss;
-				$cgroups_vsize{$cgroup} = $cgroups_vsize{$cgroup} + $vsize;
-				$cgroups_trs{$cgroup}   = $cgroups_trs{$cgroup} + $trs;
-				$cgroups_drs{$cgroup}   = $cgroups_drs{$cgroup} + $drs;
-				$cgroups_size{$cgroup}  = $cgroups_size{$cgroup} + $size;
+				$cgroups_rss{$cgroup}    = $cgroups_rss{$cgroup} + $rss;
+				$cgroups_vsize{$cgroup}  = $cgroups_vsize{$cgroup} + $vsize;
+				$cgroups_trs{$cgroup}    = $cgroups_trs{$cgroup} + $trs;
+				$cgroups_drs{$cgroup}    = $cgroups_drs{$cgroup} + $drs;
+				$cgroups_size{$cgroup}   = $cgroups_size{$cgroup} + $size;
+				$cgroups_etimes{$cgroup} = $cgroups_etimes{$cgroup} + $etimes;
 			} ## end else [ if ( !defined( $cgroups_permem{$cgroup} ) )]
 		} ## end if ( $cgroup =~ /^0\:\:\// )
 	} ## end foreach my $line (@ps_output_split)
@@ -479,6 +484,7 @@ sub run {
 			$data->{oslvms}{$name}{'text-size'}      = $cgroups_trs{$cgroup};
 			$data->{oslvms}{$name}{'data-size'}      = $cgroups_drs{$cgroup};
 			$data->{oslvms}{$name}{'size'}           = $cgroups_size{$cgroup};
+			$data->{oslvms}{$name}{'elapsed-times'}  = $cgroups_etimes{$cgroup};
 
 			if ( $name =~ /^p\_/ || $name =~ /^d\_/ ) {
 				my $container_name = $name;
