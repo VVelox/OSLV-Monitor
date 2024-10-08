@@ -193,6 +193,7 @@ sub run {
 			'text-size'                  => 0,
 			'size'                       => 0,
 			'virtual-size'               => 0,
+			'elapsed-times'              => 0,
 		},
 	};
 
@@ -272,6 +273,7 @@ sub run {
 		'text-size'                  => 0,
 		'size'                       => 0,
 		'virtual-size'               => 0,
+		'elapsed-times'              => 0,
 		'ip'                         => [],
 		'path'                       => [],
 	};
@@ -390,7 +392,7 @@ sub run {
 	#
 	# gets of procs for finding a list of containers
 	#
-	my $ps_output = `ps -haxo pid,cgroupns,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
+	my $ps_output = `ps -haxo pid,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
 	if ( $? != 0 ) {
 		$self->{cgroupns_usable} = 0;
 		$ps_output = `ps -haxo pid,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
@@ -408,14 +410,14 @@ sub run {
 
 	foreach my $line (@ps_output_split) {
 		$line =~ s/^\s+//;
-		my ( $pid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup );
+		my ( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup );
 		if ( $self->{cgroupns_usable} ) {
-			( $pid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
+			( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
 		} else {
 			( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
 		}
 		if ( $cgroup =~ /^0\:\:\// ) {
-			$found_cgroups{$cgroup}           = $cgroupns;
+			$found_cgroups{$cgroup}           = $cgroup;
 			$data->{totals}{'percent-cpu'}    = $data->{totals}{'percent-cpu'} + $percpu;
 			$data->{totals}{'percent-memory'} = $data->{totals}{'percent-memory'} + $permem;
 			$data->{totals}{rss}              = $data->{totals}{rss} + $rss;
