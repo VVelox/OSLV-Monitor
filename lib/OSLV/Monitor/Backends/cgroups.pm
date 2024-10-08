@@ -14,11 +14,11 @@ OSLV::Monitor::Backends::cgroups - Backend for Linux cgroups.
 
 =head1 VERSION
 
-Version 0.0.1
+Version 1.0.0
 
 =cut
 
-our $VERSION = '0.0.1';
+our $VERSION = '1.0.0';
 
 =head1 SYNOPSIS
 
@@ -114,8 +114,8 @@ sub run {
 		oslvms => {},
 		totals => {
 			procs                        => 0,
-			cpu_usage_per                => 0,
-			mem_usage_per                => 0,
+			'percent-cpu'                => 0,
+			'percent-memory'             => 0,
 			rbytes                       => 0,
 			wbytes                       => 0,
 			rios                         => 0,
@@ -137,7 +137,6 @@ sub run {
 			kernel_stack                 => 0,
 			pagetables                   => 0,
 			sec_pagetables               => 0,
-			percpu                       => 0,
 			sock                         => 0,
 			vmalloc                      => 0,
 			shmem                        => 0,
@@ -194,8 +193,8 @@ sub run {
 
 	my $base_stats = {
 		procs                        => 0,
-		cpu_usage_per                => 0,
-		mem_usage_per                => 0,
+		'percent-cpu'                => 0,
+		'percent-memory'             => 0,
 		rbytes                       => 0,
 		wbytes                       => 0,
 		rios                         => 0,
@@ -217,7 +216,6 @@ sub run {
 		kernel_stack                 => 0,
 		pagetables                   => 0,
 		sec_pagetables               => 0,
-		percpu                       => 0,
 		sock                         => 0,
 		vmalloc                      => 0,
 		shmem                        => 0,
@@ -407,14 +405,14 @@ sub run {
 			( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $cgroup ) = split( /\s+/, $line );
 		}
 		if ( $cgroup =~ /^0\:\:\// ) {
-			$found_cgroups{$cgroup}         = $cgroupns;
-			$data->{totals}{cpu_usage_per}  = $data->{totals}{cpu_usage_per} + $percpu;
-			$data->{totals}{mem_usage_per}  = $data->{totals}{mem_usage_per} + $permem;
-			$data->{totals}{rss}            = $data->{totals}{rss} + $rss;
-			$data->{totals}{'virtual-size'} = $data->{totals}{'virtual-size'} + $vsize;
-			$data->{totals}{'text-size'}    = $data->{totals}{'text-size'} + $trs;
-			$data->{totals}{'data-size'}    = $data->{totals}{'data-size'} + $drs;
-			$data->{totals}{'size'}         = $data->{totals}{'size'} + $size;
+			$found_cgroups{$cgroup}           = $cgroupns;
+			$data->{totals}{'percent-cpu'}    = $data->{totals}{'percent-cpu'} + $percpu;
+			$data->{totals}{'percent-memory'} = $data->{totals}{'percent-memory'} + $permem;
+			$data->{totals}{rss}              = $data->{totals}{rss} + $rss;
+			$data->{totals}{'virtual-size'}   = $data->{totals}{'virtual-size'} + $vsize;
+			$data->{totals}{'text-size'}      = $data->{totals}{'text-size'} + $trs;
+			$data->{totals}{'data-size'}      = $data->{totals}{'data-size'} + $drs;
+			$data->{totals}{'size'}           = $data->{totals}{'size'} + $size;
 
 			if ( !defined( $cgroups_permem{$cgroup} ) ) {
 				$cgroups_permem{$cgroup} = $permem;
