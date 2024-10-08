@@ -499,10 +499,10 @@ sub run {
 					my @cpu_stats_split = split( /\n/, $cpu_stats_raw );
 					foreach my $line (@cpu_stats_split) {
 						my ( $stat, $value ) = split( /\s+/, $line, 2 );
+						if ( defined( $stat_mapping->{$stat} ) ) {
+							$stat = $stat_mapping->{$stat};
+						}
 						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
-							if ( defined( $stat_mapping->{$stat} ) ) {
-								$stat = $stat_mapping->{$stat};
-							}
 							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 							$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 						}
@@ -517,10 +517,10 @@ sub run {
 					my @memory_stats_split = split( /\n/, $memory_stats_raw );
 					foreach my $line (@memory_stats_split) {
 						my ( $stat, $value ) = split( /\s+/, $line, 2 );
+						if ( defined( $stat_mapping->{$stat} ) ) {
+							$stat = $stat_mapping->{$stat};
+						}
 						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
-							if ( defined( $stat_mapping->{$stat} ) ) {
-								$stat = $stat_mapping->{$stat};
-							}
 							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 							$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 						}
@@ -538,10 +538,10 @@ sub run {
 						shift(@line_split);
 						foreach my $item (@line_split) {
 							my ( $stat, $value ) = split( /\=/, $line, 2 );
+							if ( defined( $stat_mapping->{$stat} ) ) {
+								$stat = $stat_mapping->{$stat};
+							}
 							if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9]+/ ) {
-								if ( defined( $stat_mapping->{$stat} ) ) {
-									$stat = $stat_mapping->{$stat};
-								}
 								$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 								$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 							}
