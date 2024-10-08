@@ -118,164 +118,168 @@ sub run {
 		errors => [],
 		oslvms => {},
 		totals => {
-			procs                        => 0,
-			'percent-cpu'                => 0,
-			'percent-memory'             => 0,
-			rbytes                       => 0,
-			wbytes                       => 0,
-			rios                         => 0,
-			wios                         => 0,
-			dbytes                       => 0,
-			dios                         => 0,
-			usage_usec                   => 0,
-			user_usec                    => 0,
-			system_usec                  => 0,
-			'core_sched.force_idle_usec' => 0,
-			nr_periods                   => 0,
-			nr_throttled                 => 0,
-			throttled_usec               => 0,
-			nr_bursts                    => 0,
-			burst_usec                   => 0,
-			anon                         => 0,
-			file                         => 0,
-			kernel                       => 0,
-			kernel_stack                 => 0,
-			pagetables                   => 0,
-			sec_pagetables               => 0,
-			sock                         => 0,
-			vmalloc                      => 0,
-			shmem                        => 0,
-			zswap                        => 0,
-			zswapped                     => 0,
-			file_mapped                  => 0,
-			file_dirty                   => 0,
-			file_writeback               => 0,
-			swapcached                   => 0,
-			anon_thp                     => 0,
-			file_thp                     => 0,
-			shmem_thp                    => 0,
-			inactive_anon                => 0,
-			active_anon                  => 0,
-			inactive_file                => 0,
-			active_file                  => 0,
-			unevictable                  => 0,
-			slab_reclaimable             => 0,
-			slab_unreclaimable           => 0,
-			slab                         => 0,
-			workingset_refault_anon      => 0,
-			workingset_refault_file      => 0,
-			workingset_activate_anon     => 0,
-			workingset_activate_file     => 0,
-			workingset_restore_anon      => 0,
-			workingset_restore_file      => 0,
-			workingset_nodereclaim       => 0,
-			pgscan                       => 0,
-			pgsteal                      => 0,
-			pgscan_kswapd                => 0,
-			pgscan_direct                => 0,
-			pgscan_khugepaged            => 0,
-			pgsteal_kswapd               => 0,
-			pgsteal_direct               => 0,
-			pgsteal_khugepaged           => 0,
-			'minor-faults'               => 0,
-			'major-faults'               => 0,
-			pgrefill                     => 0,
-			pgactivate                   => 0,
-			pgdeactivate                 => 0,
-			pglazyfree                   => 0,
-			pglazyfreed                  => 0,
-			zswpin                       => 0,
-			zswpout                      => 0,
-			thp_fault_alloc              => 0,
-			thp_collapse_alloc           => 0,
-			rss                          => 0,
-			'data-size'                  => 0,
-			'text-size'                  => 0,
-			'size'                       => 0,
-			'virtual-size'               => 0,
-			'elapsed-times'              => 0,
+			procs                          => 0,
+			'percent-cpu'                  => 0,
+			'percent-memory'               => 0,
+			rbytes                         => 0,
+			wbytes                         => 0,
+			rios                           => 0,
+			wios                           => 0,
+			dbytes                         => 0,
+			dios                           => 0,
+			usage_usec                     => 0,
+			user_usec                      => 0,
+			system_usec                    => 0,
+			'core_sched.force_idle_usec'   => 0,
+			nr_periods                     => 0,
+			nr_throttled                   => 0,
+			throttled_usec                 => 0,
+			nr_bursts                      => 0,
+			burst_usec                     => 0,
+			anon                           => 0,
+			file                           => 0,
+			kernel                         => 0,
+			kernel_stack                   => 0,
+			pagetables                     => 0,
+			sec_pagetables                 => 0,
+			sock                           => 0,
+			vmalloc                        => 0,
+			shmem                          => 0,
+			zswap                          => 0,
+			zswapped                       => 0,
+			file_mapped                    => 0,
+			file_dirty                     => 0,
+			file_writeback                 => 0,
+			swapcached                     => 0,
+			anon_thp                       => 0,
+			file_thp                       => 0,
+			shmem_thp                      => 0,
+			inactive_anon                  => 0,
+			active_anon                    => 0,
+			inactive_file                  => 0,
+			active_file                    => 0,
+			unevictable                    => 0,
+			slab_reclaimable               => 0,
+			slab_unreclaimable             => 0,
+			slab                           => 0,
+			workingset_refault_anon        => 0,
+			workingset_refault_file        => 0,
+			workingset_activate_anon       => 0,
+			workingset_activate_file       => 0,
+			workingset_restore_anon        => 0,
+			workingset_restore_file        => 0,
+			workingset_nodereclaim         => 0,
+			pgscan                         => 0,
+			pgsteal                        => 0,
+			pgscan_kswapd                  => 0,
+			pgscan_direct                  => 0,
+			pgscan_khugepaged              => 0,
+			pgsteal_kswapd                 => 0,
+			pgsteal_direct                 => 0,
+			pgsteal_khugepaged             => 0,
+			'minor-faults'                 => 0,
+			'major-faults'                 => 0,
+			pgrefill                       => 0,
+			pgactivate                     => 0,
+			pgdeactivate                   => 0,
+			pglazyfree                     => 0,
+			pglazyfreed                    => 0,
+			zswpin                         => 0,
+			zswpout                        => 0,
+			thp_fault_alloc                => 0,
+			thp_collapse_alloc             => 0,
+			rss                            => 0,
+			'data-size'                    => 0,
+			'text-size'                    => 0,
+			'size'                         => 0,
+			'virtual-size'                 => 0,
+			'elapsed-times'                => 0,
+			'involuntary-context-switches' => 0,
+			'voluntary-context-switches'   => 0,
 		},
 	};
 
 	my $base_stats = {
-		procs                        => 0,
-		'percent-cpu'                => 0,
-		'percent-memory'             => 0,
-		rbytes                       => 0,
-		wbytes                       => 0,
-		rios                         => 0,
-		wios                         => 0,
-		dbytes                       => 0,
-		dios                         => 0,
-		usage_usec                   => 0,
-		user_usec                    => 0,
-		system_usec                  => 0,
-		'core_sched.force_idle_usec' => 0,
-		nr_periods                   => 0,
-		nr_throttled                 => 0,
-		throttled_usec               => 0,
-		nr_bursts                    => 0,
-		burst_usec                   => 0,
-		anon                         => 0,
-		file                         => 0,
-		kernel                       => 0,
-		kernel_stack                 => 0,
-		pagetables                   => 0,
-		sec_pagetables               => 0,
-		sock                         => 0,
-		vmalloc                      => 0,
-		shmem                        => 0,
-		zswap                        => 0,
-		zswapped                     => 0,
-		file_mapped                  => 0,
-		file_dirty                   => 0,
-		file_writeback               => 0,
-		swapcached                   => 0,
-		anon_thp                     => 0,
-		file_thp                     => 0,
-		shmem_thp                    => 0,
-		inactive_anon                => 0,
-		active_anon                  => 0,
-		inactive_file                => 0,
-		active_file                  => 0,
-		unevictable                  => 0,
-		slab_reclaimable             => 0,
-		slab_unreclaimable           => 0,
-		slab                         => 0,
-		workingset_refault_anon      => 0,
-		workingset_refault_file      => 0,
-		workingset_activate_anon     => 0,
-		workingset_activate_file     => 0,
-		workingset_restore_anon      => 0,
-		workingset_restore_file      => 0,
-		workingset_nodereclaim       => 0,
-		pgscan                       => 0,
-		pgsteal                      => 0,
-		pgscan_kswapd                => 0,
-		pgscan_direct                => 0,
-		pgscan_khugepaged            => 0,
-		pgsteal_kswapd               => 0,
-		pgsteal_direct               => 0,
-		pgsteal_khugepaged           => 0,
-		'minor-faults'               => 0,
-		'major-faults'               => 0,
-		pgrefill                     => 0,
-		pgactivate                   => 0,
-		pgdeactivate                 => 0,
-		pglazyfree                   => 0,
-		pglazyfreed                  => 0,
-		zswpin                       => 0,
-		zswpout                      => 0,
-		thp_fault_alloc              => 0,
-		thp_collapse_alloc           => 0,
-		rss                          => 0,
-		'data-size'                  => 0,
-		'text-size'                  => 0,
-		'size'                       => 0,
-		'virtual-size'               => 0,
-		'elapsed-times'              => 0,
-		'ip'                         => [],
-		'path'                       => [],
+		procs                          => 0,
+		'percent-cpu'                  => 0,
+		'percent-memory'               => 0,
+		rbytes                         => 0,
+		wbytes                         => 0,
+		rios                           => 0,
+		wios                           => 0,
+		dbytes                         => 0,
+		dios                           => 0,
+		usage_usec                     => 0,
+		user_usec                      => 0,
+		system_usec                    => 0,
+		'core_sched.force_idle_usec'   => 0,
+		nr_periods                     => 0,
+		nr_throttled                   => 0,
+		throttled_usec                 => 0,
+		nr_bursts                      => 0,
+		burst_usec                     => 0,
+		anon                           => 0,
+		file                           => 0,
+		kernel                         => 0,
+		kernel_stack                   => 0,
+		pagetables                     => 0,
+		sec_pagetables                 => 0,
+		sock                           => 0,
+		vmalloc                        => 0,
+		shmem                          => 0,
+		zswap                          => 0,
+		zswapped                       => 0,
+		file_mapped                    => 0,
+		file_dirty                     => 0,
+		file_writeback                 => 0,
+		swapcached                     => 0,
+		anon_thp                       => 0,
+		file_thp                       => 0,
+		shmem_thp                      => 0,
+		inactive_anon                  => 0,
+		active_anon                    => 0,
+		inactive_file                  => 0,
+		active_file                    => 0,
+		unevictable                    => 0,
+		slab_reclaimable               => 0,
+		slab_unreclaimable             => 0,
+		slab                           => 0,
+		workingset_refault_anon        => 0,
+		workingset_refault_file        => 0,
+		workingset_activate_anon       => 0,
+		workingset_activate_file       => 0,
+		workingset_restore_anon        => 0,
+		workingset_restore_file        => 0,
+		workingset_nodereclaim         => 0,
+		pgscan                         => 0,
+		pgsteal                        => 0,
+		pgscan_kswapd                  => 0,
+		pgscan_direct                  => 0,
+		pgscan_khugepaged              => 0,
+		pgsteal_kswapd                 => 0,
+		pgsteal_direct                 => 0,
+		pgsteal_khugepaged             => 0,
+		'minor-faults'                 => 0,
+		'major-faults'                 => 0,
+		pgrefill                       => 0,
+		pgactivate                     => 0,
+		pgdeactivate                   => 0,
+		pglazyfree                     => 0,
+		pglazyfreed                    => 0,
+		zswpin                         => 0,
+		zswpout                        => 0,
+		thp_fault_alloc                => 0,
+		thp_collapse_alloc             => 0,
+		rss                            => 0,
+		'data-size'                    => 0,
+		'text-size'                    => 0,
+		'size'                         => 0,
+		'virtual-size'                 => 0,
+		'elapsed-times'                => 0,
+		'involuntary-context-switches' => 0,
+		'voluntary-context-switches'   => 0,
+		'ip'                           => [],
+		'path'                         => [],
 	};
 
 	my $stat_mapping = {
@@ -408,12 +412,17 @@ sub run {
 	my %cgroups_drs;
 	my %cgroups_size;
 	my %cgroups_etimes;
+	my %cgroups_invvol_ctxt_switches;
+	my %cgroups_vol_ctxt_switches;
 
 	foreach my $line (@ps_output_split) {
 		$line =~ s/^\s+//;
+		my $vol_ctxt_switches   = 0;
+		my $invol_ctxt_switches = 0;
 		my ( $pid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup );
 		if ( $self->{cgroupns_usable} ) {
-			( $pid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup ) = split( /\s+/, $line );
+			( $pid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )
+				= split( /\s+/, $line );
 		} else {
 			( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup ) = split( /\s+/, $line );
 		}
@@ -428,26 +437,52 @@ sub run {
 			$data->{totals}{'size'}           = $data->{totals}{'size'} + $size;
 			$data->{totals}{'elapsed-times'}  = $data->{totals}{'elapsed-times'} + $etimes;
 
+			eval {
+				if ( -f '/proc/' . $pid . '/status' ) {
+					my @switches_find
+						= grep( /voluntary\_ctxt\_switches\:/, read_file( '/proc/' . $pid . '/status' ) );
+					foreach my $found_switch (@switches_find) {
+						chomp($found_switch);
+						my @switch_split = split( /\:[\ \t]+/, $found_switch );
+						if ( defined( $switch_split[0] ) && defined( $switch_split[1] ) ) {
+							if ( $switch_split[0] eq 'voluntary_ctxt_switches' ) {
+								$vol_ctxt_switches = $switch_split[1];
+							} elsif ( $switch_split[0] eq 'involuntary_ctxt_switches' ) {
+								$invol_ctxt_switches = $switch_split[1];
+							}
+						}
+					} ## end foreach my $found_switch (@switches_find)
+				} ## end if ( -f '/proc/' . $pid . '/status' )
+			};
+			$data->{totals}{'voluntary-context-switches'}
+				= $data->{totals}{'voluntary-context-switches'} + $vol_ctxt_switches;
+			$data->{totals}{'involuntary-context-switches'}
+				= $data->{totals}{'involuntary-context-switches'} + $invol_ctxt_switches;
+
 			if ( !defined( $cgroups_permem{$cgroup} ) ) {
-				$cgroups_permem{$cgroup} = $permem;
-				$cgroups_percpu{$cgroup} = $percpu;
-				$cgroups_procs{$cgroup}  = 1;
-				$cgroups_rss{$cgroup}    = $rss;
-				$cgroups_vsize{$cgroup}  = $vsize;
-				$cgroups_trs{$cgroup}    = $trs;
-				$cgroups_drs{$cgroup}    = $drs;
-				$cgroups_size{$cgroup}   = $size;
-				$cgroups_etimes{$cgroup} = $etimes;
+				$cgroups_permem{$cgroup}               = $permem;
+				$cgroups_percpu{$cgroup}               = $percpu;
+				$cgroups_procs{$cgroup}                = 1;
+				$cgroups_rss{$cgroup}                  = $rss;
+				$cgroups_vsize{$cgroup}                = $vsize;
+				$cgroups_trs{$cgroup}                  = $trs;
+				$cgroups_drs{$cgroup}                  = $drs;
+				$cgroups_size{$cgroup}                 = $size;
+				$cgroups_etimes{$cgroup}               = $etimes;
+				$cgroups_invvol_ctxt_switches{$cgroup} = $invol_ctxt_switches;
+				$cgroups_vol_ctxt_switches{$cgroup}    = $vol_ctxt_switches;
 			} else {
 				$cgroups_permem{$cgroup} = $cgroups_permem{$cgroup} + $permem;
 				$cgroups_percpu{$cgroup} = $cgroups_percpu{$cgroup} + $percpu;
 				$cgroups_procs{$cgroup}++;
-				$cgroups_rss{$cgroup}    = $cgroups_rss{$cgroup} + $rss;
-				$cgroups_vsize{$cgroup}  = $cgroups_vsize{$cgroup} + $vsize;
-				$cgroups_trs{$cgroup}    = $cgroups_trs{$cgroup} + $trs;
-				$cgroups_drs{$cgroup}    = $cgroups_drs{$cgroup} + $drs;
-				$cgroups_size{$cgroup}   = $cgroups_size{$cgroup} + $size;
-				$cgroups_etimes{$cgroup} = $cgroups_etimes{$cgroup} + $etimes;
+				$cgroups_rss{$cgroup}                  = $cgroups_rss{$cgroup} + $rss;
+				$cgroups_vsize{$cgroup}                = $cgroups_vsize{$cgroup} + $vsize;
+				$cgroups_trs{$cgroup}                  = $cgroups_trs{$cgroup} + $trs;
+				$cgroups_drs{$cgroup}                  = $cgroups_drs{$cgroup} + $drs;
+				$cgroups_size{$cgroup}                 = $cgroups_size{$cgroup} + $size;
+				$cgroups_etimes{$cgroup}               = $cgroups_etimes{$cgroup} + $etimes;
+				$cgroups_invvol_ctxt_switches{$cgroup} = $cgroups_invvol_ctxt_switches{$cgroup} + $invol_ctxt_switches;
+				$cgroups_vol_ctxt_switches{$cgroup}    = $cgroups_vol_ctxt_switches{$cgroup} + $vol_ctxt_switches;
 			} ## end else [ if ( !defined( $cgroups_permem{$cgroup} ) )]
 		} ## end if ( $cgroup =~ /^0\:\:\// )
 	} ## end foreach my $line (@ps_output_split)
