@@ -46,8 +46,8 @@ Anything else is formed like below.
 
 The following ps to stats mapping are as below.
 
-    %cpu -> cpu_usage_per
-    %mem -> mem_usage_per
+    %cpu -> percent-cpu
+    %mem -> percent-memory
     rss -> rss
     vsize -> virtual-size
     trs -> text-size
@@ -62,6 +62,11 @@ the names kept as is.
     cpu.stat
     io.stat
     memory.stat
+
+The following mappings are done though.
+
+    pgfault -> minor-faults
+    pgmajfault -> major-faults
 
 =head2 METHODS
 
@@ -172,8 +177,8 @@ sub run {
 			pgsteal_kswapd               => 0,
 			pgsteal_direct               => 0,
 			pgsteal_khugepaged           => 0,
-			pgfault                      => 0,
-			pgmajfault                   => 0,
+			'minor-faults'               => 0,
+			'major-faults'               => 0,
 			pgrefill                     => 0,
 			pgactivate                   => 0,
 			pgdeactivate                 => 0,
@@ -251,8 +256,8 @@ sub run {
 		pgsteal_kswapd               => 0,
 		pgsteal_direct               => 0,
 		pgsteal_khugepaged           => 0,
-		pgfault                      => 0,
-		pgmajfault                   => 0,
+		'minor-faults'               => 0,
+		'major-faults'               => 0,
 		pgrefill                     => 0,
 		pgactivate                   => 0,
 		pgdeactivate                 => 0,
@@ -269,6 +274,11 @@ sub run {
 		'virtual-size'               => 0,
 		'ip'                         => [],
 		'path'                       => [],
+	};
+
+	my $stat_mapping = {
+		'pgmajfault' => 'major-faults',
+		'pgfault'    => 'minor-faults',
 	};
 
 	#
@@ -458,15 +468,15 @@ sub run {
 
 			$data->{oslvms}{$name} = clone($base_stats);
 
-			$data->{oslvms}{$name}{cpu_usage_per}  = $cgroups_percpu{$cgroup};
-			$data->{oslvms}{$name}{mem_usage_per}  = $cgroups_permem{$cgroup};
-			$data->{oslvms}{$name}{procs}          = $cgroups_procs{$cgroup};
-			$data->{totals}{procs}                 = $data->{totals}{procs} + $cgroups_procs{$cgroup};
-			$data->{oslvms}{$name}{rss}            = $cgroups_rss{$cgroup};
-			$data->{oslvms}{$name}{'virtual-size'} = $cgroups_vsize{$cgroup};
-			$data->{oslvms}{$name}{'text-size'}    = $cgroups_trs{$cgroup};
-			$data->{oslvms}{$name}{'data-size'}    = $cgroups_drs{$cgroup};
-			$data->{oslvms}{$name}{'size'}         = $cgroups_size{$cgroup};
+			$data->{oslvms}{$name}{'percent-cpu'}    = $cgroups_percpu{$cgroup};
+			$data->{oslvms}{$name}{'percent-memory'} = $cgroups_permem{$cgroup};
+			$data->{oslvms}{$name}{procs}            = $cgroups_procs{$cgroup};
+			$data->{totals}{procs}                   = $data->{totals}{procs} + $cgroups_procs{$cgroup};
+			$data->{oslvms}{$name}{rss}              = $cgroups_rss{$cgroup};
+			$data->{oslvms}{$name}{'virtual-size'}   = $cgroups_vsize{$cgroup};
+			$data->{oslvms}{$name}{'text-size'}      = $cgroups_trs{$cgroup};
+			$data->{oslvms}{$name}{'data-size'}      = $cgroups_drs{$cgroup};
+			$data->{oslvms}{$name}{'size'}           = $cgroups_size{$cgroup};
 
 			if ( $name =~ /^p\_/ || $name =~ /^d\_/ ) {
 				my $container_name = $name;
@@ -490,10 +500,13 @@ sub run {
 					foreach my $line (@cpu_stats_split) {
 						my ( $stat, $value ) = split( /\s+/, $line, 2 );
 						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
+							if ( defined( $stat_mapping->{$stat} ) ) {
+								$stat = $stat_mapping->{$stat};
+							}
 							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 							$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 						}
-					}
+					} ## end foreach my $line (@cpu_stats_split)
 				} ## end if ( defined($cpu_stats_raw) )
 			} ## end if ( -f $base_dir . '/cpu.stat' && -r $base_dir...)
 
@@ -505,10 +518,13 @@ sub run {
 					foreach my $line (@memory_stats_split) {
 						my ( $stat, $value ) = split( /\s+/, $line, 2 );
 						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
+							if ( defined( $stat_mapping->{$stat} ) ) {
+								$stat = $stat_mapping->{$stat};
+							}
 							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 							$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 						}
-					}
+					} ## end foreach my $line (@memory_stats_split)
 				} ## end if ( defined($memory_stats_raw) )
 			} ## end if ( -f $base_dir . '/memory.stat' && -r $base_dir...)
 
@@ -523,10 +539,13 @@ sub run {
 						foreach my $item (@line_split) {
 							my ( $stat, $value ) = split( /\=/, $line, 2 );
 							if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9]+/ ) {
+								if ( defined( $stat_mapping->{$stat} ) ) {
+									$stat = $stat_mapping->{$stat};
+								}
 								$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 								$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
 							}
-						}
+						} ## end foreach my $item (@line_split)
 					} ## end foreach my $line (@io_stats_split)
 				} ## end if ( defined($io_stats_raw) )
 			} ## end if ( -f $base_dir . '/io.stat' && -r $base_dir...)
