@@ -716,6 +716,13 @@ sub run {
 
 	$data->{uid_mapping} = $self->{uid_mapping};
 
+	# save the proc cache for next run
+	eval { write_file( $self->{cache_file}, encode_json($self->{new_cache}) ); };
+	if ($@) {
+		push( @{ $data->{errors} }, 'saving proc cache failed, "' . $self->{proc_cache} . '"... ' . $@ );
+		$data->{cache_failure} = 1;
+	}
+
 	return $data;
 } ## end sub run
 
@@ -841,6 +848,9 @@ sub cache_process {
 			$self->{new_cache}{$name} = {};
 		}
 		$self->{new_cache}{$name} = $new_value;
+		if ($new_value != 0) {
+			$new_value = $new_value / 300;
+		}
 		return $new_value;
 	}
 
@@ -849,7 +859,14 @@ sub cache_process {
 		if ( $new_value > 10000000000 ) {
 			return 0;
 		}
+		if ($new_value != 0) {
+			$new_value = $new_value / 300;
+		}
 		return $new_value;
+	}
+
+	if ($new_value != 0) {
+		$new_value = $new_value / 300;
 	}
 
 	return $new_value;
