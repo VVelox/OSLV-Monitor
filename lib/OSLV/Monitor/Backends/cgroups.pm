@@ -118,19 +118,32 @@ sub run {
 	my $data = {
 		errors => [],
 		oslvms => {},
+		has    => {
+			'linux_mem_stats' => 1,
+			'rwdops'          => 1,
+			'rwdbytes'        => 1,
+			'rwdblocks'       => 0,
+			'signals-taken'   => 0,
+			'recv_sent_msgs'  => 0,
+			'cows'            => 0,
+			'stack-size'      => 0,
+			'swaps'           => 0,
+			'sock'            => 1,
+
+		},
 		totals => {
 			procs                          => 0,
 			'percent-cpu'                  => 0,
 			'percent-memory'               => 0,
+			'system-time'                  => 0,
+			'cpu-time'                     => 0,
+			'user-time'                    => 0,
 			rbytes                         => 0,
 			wbytes                         => 0,
 			rios                           => 0,
 			wios                           => 0,
 			dbytes                         => 0,
 			dios                           => 0,
-			usage_usec                     => 0,
-			user_usec                      => 0,
-			system_usec                    => 0,
 			'core_sched.force_idle_usec'   => 0,
 			nr_periods                     => 0,
 			nr_throttled                   => 0,
@@ -204,15 +217,15 @@ sub run {
 		procs                          => 0,
 		'percent-cpu'                  => 0,
 		'percent-memory'               => 0,
+		'system-time'                  => 0,
+		'cpu-time'                     => 0,
+		'user-time'                    => 0,
 		rbytes                         => 0,
 		wbytes                         => 0,
 		rios                           => 0,
 		wios                           => 0,
 		dbytes                         => 0,
 		dios                           => 0,
-		usage_usec                     => 0,
-		user_usec                      => 0,
-		system_usec                    => 0,
 		'core_sched.force_idle_usec'   => 0,
 		nr_periods                     => 0,
 		nr_throttled                   => 0,
@@ -284,8 +297,11 @@ sub run {
 	};
 
 	my $stat_mapping = {
-		'pgmajfault' => 'major-faults',
-		'pgfault'    => 'minor-faults',
+		'pgmajfault'  => 'major-faults',
+		'pgfault'     => 'minor-faults',
+		'usage_usec'  => 'cpu-time',
+		'user_usec'   => 'user-time',
+		'system_usec' => 'system-time',
 	};
 
 	#
