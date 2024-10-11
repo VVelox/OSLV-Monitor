@@ -822,8 +822,8 @@ sub ip_to_if {
 sub cache_process {
 	my $self      = $_[0];
 	my $name      = $_[1];
-	my $var       = $_[1];
-	my $new_value = $_[1];
+	my $var       = $_[2];
+	my $new_value = $_[3];
 
 	if ( !defined($name) || !defined($var) || !defined($new_value) ) {
 		warn('name, var, or new_value is undef');
