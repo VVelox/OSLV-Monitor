@@ -711,8 +711,15 @@ sub run {
 					} ## end foreach my $line (@io_stats_split)
 				} ## end if ( defined($io_stats_raw) )
 			} ## end if ( -f $base_dir . '/io.stat' && -r $base_dir...)
+			$data->{oslvms}{$name}{'cpu-time'}    = $data->{oslvms}{$name}{'cpu-time'} / 1000000;
+			$data->{oslvms}{$name}{'system-time'} = $data->{oslvms}{$name}{'system-time'} / 1000000;
+			$data->{oslvms}{$name}{'user-time'}   = $data->{oslvms}{$name}{'user-time'} / 1000000;
 		} ## end if ( $self->{obj}->include($name) )
 	} ## end foreach my $cgroup ( keys( %{ $self->{mappings}...}))
+
+	$data->{oslvms}{'totals'}{'cpu-time'}    = $data->{oslvms}{'totals'}{'cpu-time'} / 1000000;
+	$data->{oslvms}{'totals'}{'system-time'} = $data->{oslvms}{'totals'}{'system-time'} / 1000000;
+	$data->{oslvms}{'totals'}{'user-time'}   = $data->{oslvms}{'totals'}{'user-time'} / 1000000;
 
 	$data->{uid_mapping} = $self->{uid_mapping};
 
@@ -864,13 +871,6 @@ sub cache_process {
 		if ( $new_value > 10000000000 ) {
 			$self->{new_cache}{$name}{$var} = 0;
 			return 0;
-		}
-		# convert useconds to seconds
-		if (   $var eq 'system-time'
-			|| $var eq 'cpu-time'
-			|| $var eq 'user-time' )
-		{
-			$new_value = $new_value / 1000000;
 		}
 		return $new_value;
 	} ## end if ( $new_value >= $self->{cache}{$name}{$var...})
