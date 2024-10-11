@@ -282,8 +282,8 @@ sub run {
 				'reading proc cache "' . $self->{cache_file} . '" failed... using a empty one...' . $@
 			);
 			$data->{cache_failure} = 1;
+			return $data;
 		}
-		return $data;
 	} ## end if ( -f $self->{cache_file} )
 
 	my $base_stats = {
