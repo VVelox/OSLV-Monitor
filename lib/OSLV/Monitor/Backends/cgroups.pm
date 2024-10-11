@@ -846,8 +846,10 @@ sub cache_process {
 	if ( !defined( $self->{new_cache}{$name} ) ) {
 		$self->{new_cache}{$name} = {};
 	}
+	$self->{new_cache}{$name}{$var} = $new_value;
+
+	# not seen it yet
 	if ( !defined( $self->{cache}{$name}{$var} ) ) {
-		$self->{new_cache}{$name}{$var} = $new_value;
 		if ($new_value != 0) {
 			$new_value = $new_value / 300;
 		}
