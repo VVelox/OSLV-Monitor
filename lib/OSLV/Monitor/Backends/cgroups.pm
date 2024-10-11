@@ -717,7 +717,7 @@ sub run {
 	$data->{uid_mapping} = $self->{uid_mapping};
 
 	# save the proc cache for next run
-	eval { write_file( $self->{cache_file}, encode_json($self->{new_cache}) ); };
+	eval { write_file( $self->{cache_file}, encode_json( $self->{new_cache} ) ); };
 	if ($@) {
 		push( @{ $data->{errors} }, 'saving proc cache failed, "' . $self->{proc_cache} . '"... ' . $@ );
 		$data->{cache_failure} = 1;
@@ -838,7 +838,7 @@ sub cache_process {
 	}
 
 	# is a gauge and not a counter
-	if ( !defined($self->{counters}{$var}) ) {
+	if ( !defined( $self->{counters}{$var} ) ) {
 		return $new_value;
 	}
 
@@ -850,7 +850,7 @@ sub cache_process {
 
 	# not seen it yet
 	if ( !defined( $self->{cache}{$name}{$var} ) ) {
-		if ($new_value != 0) {
+		if ( $new_value != 0 ) {
 			$new_value = $new_value / 300;
 		}
 		return $new_value;
@@ -858,17 +858,24 @@ sub cache_process {
 
 	if ( $new_value >= $self->{cache}{$name}{$var} ) {
 		$new_value = $new_value - $self->{cache}{$name}{$var};
-		if ($new_value != 0) {
+		if ( $new_value != 0 ) {
 			$new_value = $new_value / 300;
 		}
 		if ( $new_value > 10000000000 ) {
 			$self->{new_cache}{$name}{$var} = 0;
 			return 0;
 		}
+		# convert useconds to seconds
+		if (   $var eq 'system-time'
+			|| $var eq 'cpu-time'
+			|| $var eq 'user-time' )
+		{
+			$new_value = $new_value / 1000000;
+		}
 		return $new_value;
-	}
+	} ## end if ( $new_value >= $self->{cache}{$name}{$var...})
 
-	if ($new_value != 0) {
+	if ( $new_value != 0 ) {
 		$new_value = $new_value / 300;
 	}
 
