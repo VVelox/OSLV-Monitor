@@ -77,12 +77,20 @@ Initiates the backend object.
 
     my $backend=OSLV::MOnitor::Backend::cgroups->new(obj=>$obj)
 
+    - base_dir :: Path to use for the base dir, where the proc/cgroup
+            cache, linux_cache.json, is is created.
+        Default :: /var/cache/oslv_monitor
+
     - obj :: The OSLVM::Monitor object.
 
 =cut
 
 sub new {
 	my ( $blank, %opts ) = @_;
+
+	if ( !defined( $opts{base_dir} ) ) {
+		$opts{base_dir} = '/var/cache/oslv_monitor';
+	}
 
 	if ( !defined( $opts{obj} ) ) {
 		die('$opts{obj} is undef');
@@ -100,6 +108,54 @@ sub new {
 		docker_info     => {},
 		uid_mapping     => {},
 		obj             => $opts{obj},
+		cache_file      => $opts{base_dir} . '/linux_cache.json',
+		counters        => {
+			'cpu-time'                     => 1,
+			'system-time'                  => 1,
+			'user-time'                    => 1,
+			'read-blocks'                  => 1,
+			'major-faults'                 => 1,
+			'involuntary-context-switches' => 1,
+			'minor-faults'                 => 1,
+			'received-messages'            => 1,
+			'sent-messages'                => 1,
+			'swaps'                        => 1,
+			'voluntary-context-switches'   => 1,
+			'written-blocks'               => 1,
+			'copy-on-write-faults'         => 1,
+			'signals-taken'                => 1,
+			'rbytes'                       => 1,
+			'wbytes'                       => 1,
+			'dbytes'                       => 1,
+			'rios'                         => 1,
+			'wios'                         => 1,
+			'dios'                         => 1,
+			'pgactivate'                   => 1,
+			'pgdeactivate'                 => 1,
+			'pglazyfree'                   => 1,
+			'pglazyfreed'                  => 1,
+			'pgrefill'                     => 1,
+			'pgscan'                       => 1,
+			'pgscan_direct'                => 1,
+			'pgscan_khugepaged'            => 1,
+			'pgscan_kswapd'                => 1,
+			'pgsteal'                      => 1,
+			'pgsteal_direct'               => 1,
+			'pgsteal_khugepaged'           => 1,
+			'pgsteal_kswapd'               => 1,
+			'thp_fault_alloc'              => 1,
+			'thp_collapse_alloc'           => 1,
+			'thp_swpout'                   => 1,
+			'thp_swpout_fallback'          => 1,
+			'system_usec'                  => 1,
+			'usage_usec'                   => 1,
+			'user_usec'                    => 1,
+			'zswpin'                       => 1,
+			'zswpout'                      => 1,
+			'zswpwb'                       => 1,
+		},
+		cache     => {},
+		new_cache => {},
 	};
 	bless $self;
 
@@ -213,6 +269,23 @@ sub run {
 		},
 	};
 
+	my $proc_cache;
+	my $new_cache = {};
+	if ( -f $self->{cache_file} ) {
+		eval {
+			my $raw_cache = read_file( $self->{cache_file} );
+			$self->{cache} = decode_json($raw_cache);
+		};
+		if ($@) {
+			push(
+				@{ $data->{errors} },
+				'reading proc cache "' . $self->{cache_file} . '" failed... using a empty one...' . $@
+			);
+			$data->{cache_failure} = 1;
+		}
+		return $data;
+	} ## end if ( -f $self->{cache_file} )
+
 	my $base_stats = {
 		procs                          => 0,
 		'percent-cpu'                  => 0,
@@ -302,6 +375,24 @@ sub run {
 		'usage_usec'  => 'cpu-time',
 		'user_usec'   => 'user-time',
 		'system_usec' => 'system-time',
+	};
+
+	# these are counters and differences needed computed for them
+	my $counters = {
+		'cpu-time'                     => 1,
+		'system-time'                  => 1,
+		'user-time'                    => 1,
+		'read-blocks'                  => 1,
+		'major-faults'                 => 1,
+		'involuntary-context-switches' => 1,
+		'minor-faults'                 => 1,
+		'received-messages'            => 1,
+		'sent-messages'                => 1,
+		'swaps'                        => 1,
+		'voluntary-context-switches'   => 1,
+		'written-blocks'               => 1,
+		'copy-on-write-faults'         => 1,
+		'signals-taken'                => 1,
 	};
 
 	#
@@ -413,10 +504,10 @@ sub run {
 	#
 	# gets of procs for finding a list of containers
 	#
-	my $ps_output = `ps -haxo pid,cgroupns,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
+	my $ps_output = `ps -haxo pid,uid,gid,cgroupns,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
 	if ( $? != 0 ) {
 		$self->{cgroupns_usable} = 0;
-		$ps_output = `ps -haxo pid,%cpu,%mem,rss,vsize,trs,drs,size,etimes,cgroup 2> /dev/null`;
+		$ps_output = `ps -haxo pid,uid,gid,%cpu,%mem,rss,vsize,trs,drs,size,etimes,cgroup 2> /dev/null`;
 	}
 	my @ps_output_split = split( /\n/, $ps_output );
 	my %found_cgroups;
@@ -436,14 +527,18 @@ sub run {
 		$line =~ s/^\s+//;
 		my $vol_ctxt_switches   = 0;
 		my $invol_ctxt_switches = 0;
-		my ( $pid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup );
+		my ( $pid, $uid, $gid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup );
 		if ( $self->{cgroupns_usable} ) {
-			( $pid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )
+			( $pid, $uid, $gid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )
 				= split( /\s+/, $line );
 		} else {
-			( $pid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup ) = split( /\s+/, $line );
+			( $pid, $uid, $gid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )
+				= split( /\s+/, $line );
 		}
 		if ( $cgroup =~ /^0\:\:\// ) {
+
+			my $cache_name = 'proc-' . $pid . '-' . $uid . '-' . $gid . '-' . $cgroup;
+
 			$found_cgroups{$cgroup}           = $cgroup;
 			$data->{totals}{'percent-cpu'}    = $data->{totals}{'percent-cpu'} + $percpu;
 			$data->{totals}{'percent-memory'} = $data->{totals}{'percent-memory'} + $permem;
@@ -471,8 +566,11 @@ sub run {
 					} ## end foreach my $found_switch (@switches_find)
 				} ## end if ( -f '/proc/' . $pid . '/status' )
 			};
+			$vol_ctxt_switches = $self->cache_process( $cache_name, 'voluntary-context-switches', $vol_ctxt_switches );
 			$data->{totals}{'voluntary-context-switches'}
 				= $data->{totals}{'voluntary-context-switches'} + $vol_ctxt_switches;
+			$invol_ctxt_switches
+				= $self->cache_process( $cache_name, 'involuntary-context-switches', $invol_ctxt_switches );
 			$data->{totals}{'involuntary-context-switches'}
 				= $data->{totals}{'involuntary-context-switches'} + $invol_ctxt_switches;
 
@@ -524,6 +622,8 @@ sub run {
 		# only process this cgroup if the include check returns true, otherwise ignore it
 		if ( $self->{obj}->include($name) ) {
 
+			my $cache_name = 'cgroup-' . $name;
+
 			$data->{oslvms}{$name} = clone($base_stats);
 
 			$data->{oslvms}{$name}{'percent-cpu'}    = $cgroups_percpu{$cgroup};
@@ -562,8 +662,9 @@ sub run {
 							$stat = $stat_mapping->{$stat};
 						}
 						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
+							$value                        = $self->cache_process( $cache_name, $stat, $value );
 							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
-							$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
+							$data->{totals}{$stat}        = $data->{totals}{$stat} + $value;
 						}
 					} ## end foreach my $line (@cpu_stats_split)
 				} ## end if ( defined($cpu_stats_raw) )
@@ -580,8 +681,9 @@ sub run {
 							$stat = $stat_mapping->{$stat};
 						}
 						if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9\.]+/ ) {
+							$value                        = $self->cache_process( $cache_name, $stat, $value );
 							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
-							$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
+							$data->{totals}{$stat}        = $data->{totals}{$stat} + $value;
 						}
 					} ## end foreach my $line (@memory_stats_split)
 				} ## end if ( defined($memory_stats_raw) )
@@ -601,8 +703,9 @@ sub run {
 								$stat = $stat_mapping->{$stat};
 							}
 							if ( defined( $data->{oslvms}{$name}{$stat} ) && defined($value) && $value =~ /[0-9]+/ ) {
+								$value                        = $self->cache_process( $cache_name, $stat, $value );
 								$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
-								$data->{totals}{$stat} = $data->{totals}{$stat} + $value;
+								$data->{totals}{$stat}        = $data->{totals}{$stat} + $value;
 							}
 						} ## end foreach my $item (@line_split)
 					} ## end foreach my $line (@io_stats_split)
@@ -715,6 +818,42 @@ sub ip_to_if {
 
 	return $if->name;
 } ## end sub ip_to_if
+
+sub cache_process {
+	my $self      = $_[0];
+	my $name      = $_[1];
+	my $var       = $_[1];
+	my $new_value = $_[1];
+
+	if ( !defined($name) || !defined($var) || !defined($new_value) ) {
+		warn('name, var, or new_value is undef');
+		return 0;
+	}
+
+	# is a gauge and not a counter
+	if ( !$self->{counters}{$var} ) {
+		return $new_value;
+	}
+
+	# not seen it yet
+	if ( !defined( $self->{cache}{$name} ) || !defined( $self->{cache}{$name}{$var} ) ) {
+		if ( !defined( $self->{new_cache}{$name} ) ) {
+			$self->{new_cache}{$name} = {};
+		}
+		$self->{new_cache}{$name} = $new_value;
+		return $new_value;
+	}
+
+	if ( $new_value >= $self->{cache}{$name}{$var} ) {
+		$new_value = $new_value - $self->{cache}{$name}{$var};
+		if ( $new_value > 10000000000 ) {
+			return 0;
+		}
+		return $new_value;
+	}
+
+	return $new_value;
+} ## end sub cache_process
 
 =head1 AUTHOR
 

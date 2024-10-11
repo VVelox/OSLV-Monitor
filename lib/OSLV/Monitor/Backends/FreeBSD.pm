@@ -140,6 +140,7 @@ sub run {
 			$data->{cache_failure} = 1;
 			$proc_cache = {};
 		}
+		return $data;
 	} ## end if ( -f $self->{proc_cache} )
 
 	my $base_stats = {
