@@ -838,16 +838,16 @@ sub cache_process {
 	}
 
 	# is a gauge and not a counter
-	if ( !$self->{counters}{$var} ) {
+	if ( !defined($self->{counters}{$var}) ) {
 		return $new_value;
 	}
 
 	# not seen it yet
-	if ( !defined( $self->{cache}{$name} ) || !defined( $self->{cache}{$name}{$var} ) ) {
-		if ( !defined( $self->{new_cache}{$name} ) ) {
-			$self->{new_cache}{$name} = {};
-		}
-		$self->{new_cache}{$name} = $new_value;
+	if ( !defined( $self->{new_cache}{$name} ) ) {
+		$self->{new_cache}{$name} = {};
+	}
+	if ( !defined( $self->{cache}{$name}{$var} ) ) {
+		$self->{new_cache}{$name}{$var} = $new_value;
 		if ($new_value != 0) {
 			$new_value = $new_value / 300;
 		}
@@ -856,11 +856,12 @@ sub cache_process {
 
 	if ( $new_value >= $self->{cache}{$name}{$var} ) {
 		$new_value = $new_value - $self->{cache}{$name}{$var};
-		if ( $new_value > 10000000000 ) {
-			return 0;
-		}
 		if ($new_value != 0) {
 			$new_value = $new_value / 300;
+		}
+		if ( $new_value > 10000000000 ) {
+			$self->{new_cache}{$name}{$var} = 0;
+			return 0;
 		}
 		return $new_value;
 	}
