@@ -8,6 +8,7 @@ use Clone 'clone';
 use File::Slurp;
 use IO::Interface::Simple;
 use Math::BigInt;
+use Scalar::Util qw(looks_like_number);
 
 =head1 NAME
 
@@ -68,6 +69,9 @@ The following mappings are done though.
 
     pgfault -> minor-faults
     pgmajfault -> major-faults
+    usage_usec -> cpu-time
+    system_usec -> system-time
+    user_usec -> user-time
 
 =head2 METHODS
 
@@ -83,6 +87,11 @@ Initiates the backend object.
 
     - obj :: The OSLVM::Monitor object.
 
+    - time_divider :: What to use for "usec" to sec conversion. While normally
+              the usec counters are microseconds, sometimes the value is in
+              picoseconds, despit the name.
+        Default :: 1000000
+
 =cut
 
 sub new {
@@ -92,6 +101,14 @@ sub new {
 		$opts{base_dir} = '/var/cache/oslv_monitor';
 	}
 
+	if ( !defined( $opts{time_divider} ) ) {
+		$opts{time_divider} = 1000000;
+	} else {
+		if ( looks_like_number( $opts{time_divider} ) ) {
+			die('time_divider is not a number');
+		}
+	}
+
 	if ( !defined( $opts{obj} ) ) {
 		die('$opts{obj} is undef');
 	} elsif ( ref( $opts{obj} ) ne 'OSLV::Monitor' ) {
@@ -99,6 +116,7 @@ sub new {
 	}
 
 	my $self = {
+		time_divider    => $opts{time_divider},
 		version         => 1,
 		cgroupns_usable => 1,
 		mappings        => {},
@@ -833,24 +851,24 @@ sub cache_process {
 	# not seen it yet
 	if ( !defined( $self->{cache}{$name}{$var} ) ) {
 		if ( $new_value != 0 ) {
-			if ($var eq 'cpu-time'||
-				$var eq 'system-time'||
-				$var eq 'user-time'
-				) {
+			if (   $var eq 'cpu-time'
+				|| $var eq 'system-time'
+				|| $var eq 'user-time' )
+			{
 				$new_value = $new_value / 1000000;
 			}
 			$new_value = $new_value / 300;
 		}
 		return $new_value;
-	}
+	} ## end if ( !defined( $self->{cache}{$name}{$var}...))
 
 	if ( $new_value >= $self->{cache}{$name}{$var} ) {
 		$new_value = $new_value - $self->{cache}{$name}{$var};
 		if ( $new_value != 0 ) {
-			if ($var eq 'cpu-time'||
-				$var eq 'system-time'||
-				$var eq 'user-time'
-				) {
+			if (   $var eq 'cpu-time'
+				|| $var eq 'system-time'
+				|| $var eq 'user-time' )
+			{
 				$new_value = $new_value / 1000000;
 			}
 			$new_value = $new_value / 300;
@@ -863,10 +881,10 @@ sub cache_process {
 	} ## end if ( $new_value >= $self->{cache}{$name}{$var...})
 
 	if ( $new_value != 0 ) {
-		if ($var eq 'cpu-time'||
-			$var eq 'system-time'||
-			$var eq 'user-time'
-			) {
+		if (   $var eq 'cpu-time'
+			|| $var eq 'system-time'
+			|| $var eq 'user-time' )
+		{
 			$new_value = $new_value / 1000000;
 		}
 		$new_value = $new_value / 300;
