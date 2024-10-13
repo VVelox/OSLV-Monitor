@@ -104,7 +104,7 @@ sub new {
 	if ( !defined( $opts{time_divider} ) ) {
 		$opts{time_divider} = 1000000;
 	} else {
-		if ( looks_like_number( $opts{time_divider} ) ) {
+		if ( ! looks_like_number( $opts{time_divider} ) ) {
 			die('time_divider is not a number');
 		}
 	}
