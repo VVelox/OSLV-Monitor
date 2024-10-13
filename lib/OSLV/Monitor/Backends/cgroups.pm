@@ -377,24 +377,6 @@ sub run {
 		'system_usec' => 'system-time',
 	};
 
-	# these are counters and differences needed computed for them
-	my $counters = {
-		'cpu-time'                     => 1,
-		'system-time'                  => 1,
-		'user-time'                    => 1,
-		'read-blocks'                  => 1,
-		'major-faults'                 => 1,
-		'involuntary-context-switches' => 1,
-		'minor-faults'                 => 1,
-		'received-messages'            => 1,
-		'sent-messages'                => 1,
-		'swaps'                        => 1,
-		'voluntary-context-switches'   => 1,
-		'written-blocks'               => 1,
-		'copy-on-write-faults'         => 1,
-		'signals-taken'                => 1,
-	};
-
 	#
 	# get podman/docker ID to name mappings
 	#
@@ -711,15 +693,8 @@ sub run {
 					} ## end foreach my $line (@io_stats_split)
 				} ## end if ( defined($io_stats_raw) )
 			} ## end if ( -f $base_dir . '/io.stat' && -r $base_dir...)
-			$data->{oslvms}{$name}{'cpu-time'}    = $data->{oslvms}{$name}{'cpu-time'} / 1000000;
-			$data->{oslvms}{$name}{'system-time'} = $data->{oslvms}{$name}{'system-time'} / 1000000;
-			$data->{oslvms}{$name}{'user-time'}   = $data->{oslvms}{$name}{'user-time'} / 1000000;
 		} ## end if ( $self->{obj}->include($name) )
 	} ## end foreach my $cgroup ( keys( %{ $self->{mappings}...}))
-
-	$data->{oslvms}{'totals'}{'cpu-time'}    = $data->{oslvms}{'totals'}{'cpu-time'} / 1000000;
-	$data->{oslvms}{'totals'}{'system-time'} = $data->{oslvms}{'totals'}{'system-time'} / 1000000;
-	$data->{oslvms}{'totals'}{'user-time'}   = $data->{oslvms}{'totals'}{'user-time'} / 1000000;
 
 	$data->{uid_mapping} = $self->{uid_mapping};
 
@@ -858,6 +833,12 @@ sub cache_process {
 	# not seen it yet
 	if ( !defined( $self->{cache}{$name}{$var} ) ) {
 		if ( $new_value != 0 ) {
+			if ($var eq 'cpu-time'||
+				$var eq 'system-time'||
+				$var eq 'user-time'
+				) {
+				$new_value = $new_value / 1000000;
+			}
 			$new_value = $new_value / 300;
 		}
 		return $new_value;
@@ -866,6 +847,12 @@ sub cache_process {
 	if ( $new_value >= $self->{cache}{$name}{$var} ) {
 		$new_value = $new_value - $self->{cache}{$name}{$var};
 		if ( $new_value != 0 ) {
+			if ($var eq 'cpu-time'||
+				$var eq 'system-time'||
+				$var eq 'user-time'
+				) {
+				$new_value = $new_value / 1000000;
+			}
 			$new_value = $new_value / 300;
 		}
 		if ( $new_value > 10000000000 ) {
@@ -876,6 +863,12 @@ sub cache_process {
 	} ## end if ( $new_value >= $self->{cache}{$name}{$var...})
 
 	if ( $new_value != 0 ) {
+		if ($var eq 'cpu-time'||
+			$var eq 'system-time'||
+			$var eq 'user-time'
+			) {
+			$new_value = $new_value / 1000000;
+		}
 		$new_value = $new_value / 300;
 	}
 
