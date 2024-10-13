@@ -855,7 +855,7 @@ sub cache_process {
 				|| $var eq 'system-time'
 				|| $var eq 'user-time' )
 			{
-				$new_value = $new_value / 1000000;
+				$new_value = $new_value / $self->{time_divider};
 			}
 			$new_value = $new_value / 300;
 		}
@@ -869,7 +869,7 @@ sub cache_process {
 				|| $var eq 'system-time'
 				|| $var eq 'user-time' )
 			{
-				$new_value = $new_value / 1000000;
+				$new_value = $new_value / $self->{time_divider};
 			}
 			$new_value = $new_value / 300;
 		}
@@ -885,7 +885,7 @@ sub cache_process {
 			|| $var eq 'system-time'
 			|| $var eq 'user-time' )
 		{
-			$new_value = $new_value / 1000000;
+			$new_value = $new_value / $self->{time_divider};
 		}
 		$new_value = $new_value / 300;
 	}
