@@ -139,8 +139,8 @@ sub run {
 			);
 			$data->{cache_failure} = 1;
 			$proc_cache = {};
+			return $data;
 		}
-		return $data;
 	} ## end if ( -f $self->{proc_cache} )
 
 	my $base_stats = {
@@ -178,7 +178,7 @@ sub run {
 	my @IP_keys = ( 'ip4.addr', 'ip6.addr' );
 	eval { $jls = decode_json($output) };
 	if ($@) {
-		push( @{ $data->{errors} }, 'decoding output from "jls -s --libxo json 2> /dev/null" failed... ' . $@ );
+		push( @{ $data->{errors} }, 'decoding output from "jls -h --libxo json 2> /dev/null" failed... ' . $@ );
 		return $data;
 	}
 	if (   defined($jls)
