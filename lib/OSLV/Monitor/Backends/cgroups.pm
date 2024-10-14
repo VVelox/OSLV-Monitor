@@ -208,7 +208,10 @@ sub run {
 			'stack-size'      => 0,
 			'swaps'           => 0,
 			'sock'            => 1,
-
+			'burst_time'      => 0,
+			'throttled_time'  => 0,
+			'burst_count'     => 0,
+			'throttled_count' => 0,
 		},
 		totals => {
 			procs                          => 0,
@@ -673,7 +676,19 @@ sub run {
 							$value                        = $self->cache_process( $cache_name, $stat, $value );
 							$data->{oslvms}{$name}{$stat} = $data->{oslvms}{$name}{$stat} + $value;
 							$data->{totals}{$stat}        = $data->{totals}{$stat} + $value;
-						}
+							if ( $stat eq 'nr_bursts' ) {
+								$data->{has}{burst_count} = 1;
+							}
+							if ( $stat eq 'burst-time' ) {
+								$data->{has}{burst_time} = 1;
+							}
+							if ( $stat eq 'throttled-time' ) {
+								$data->{has}{throttled_time} = 1;
+							}
+							if ( $stat eq 'nr_throttled' ) {
+								$data->{has}{throttled_count} = 1;
+							}
+						} ## end if ( defined( $data->{oslvms}{$name}{$stat...}))
 					} ## end foreach my $line (@cpu_stats_split)
 				} ## end if ( defined($cpu_stats_raw) )
 			} ## end if ( -f $base_dir . '/cpu.stat' && -r $base_dir...)
