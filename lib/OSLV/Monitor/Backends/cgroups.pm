@@ -72,6 +72,8 @@ The following mappings are done though.
     usage_usec -> cpu-time
     system_usec -> system-time
     user_usec -> user-time
+    throttled_usec -> throttled-time
+    burst_usec -> burst-time
 
 =head2 METHODS
 
@@ -104,7 +106,7 @@ sub new {
 	if ( !defined( $opts{time_divider} ) ) {
 		$opts{time_divider} = 1000000;
 	} else {
-		if ( ! looks_like_number( $opts{time_divider} ) ) {
+		if ( !looks_like_number( $opts{time_divider} ) ) {
 			die('time_divider is not a number');
 		}
 	}
@@ -131,6 +133,9 @@ sub new {
 			'cpu-time'                     => 1,
 			'system-time'                  => 1,
 			'user-time'                    => 1,
+			'throttled-time'               => 1,
+			'burst-time'                   => 1,
+			'core_sched.force_idle-time'   => 1,
 			'read-blocks'                  => 1,
 			'major-faults'                 => 1,
 			'involuntary-context-switches' => 1,
@@ -388,11 +393,14 @@ sub run {
 	};
 
 	my $stat_mapping = {
-		'pgmajfault'  => 'major-faults',
-		'pgfault'     => 'minor-faults',
-		'usage_usec'  => 'cpu-time',
-		'user_usec'   => 'user-time',
-		'system_usec' => 'system-time',
+		'pgmajfault'                 => 'major-faults',
+		'pgfault'                    => 'minor-faults',
+		'usage_usec'                 => 'cpu-time',
+		'user_usec'                  => 'user-time',
+		'system_usec'                => 'system-time',
+		'throttled_usec'             => 'throttled-time',
+		'burst_usec'                 => 'burst-time',
+		'core_sched.force_idle_usec' => 'core_sched.force_idle-time',
 	};
 
 	#
@@ -693,8 +701,8 @@ sub run {
 			if ( -f $base_dir . '/io.stat' && -r $base_dir . '/io.stat' ) {
 				eval { $io_stats_raw = read_file( $base_dir . '/io.stat' ); };
 				if ( defined($io_stats_raw) ) {
-					$data->{has}{rwdops}=1;
-					$data->{has}{rwdbytes}=1;
+					$data->{has}{rwdops}   = 1;
+					$data->{has}{rwdbytes} = 1;
 					my @io_stats_split = split( /\n/, $io_stats_raw );
 					foreach my $line (@io_stats_split) {
 						my @line_split = split( /\s/, $line );
@@ -855,12 +863,15 @@ sub cache_process {
 		if ( $new_value != 0 ) {
 			if (   $var eq 'cpu-time'
 				|| $var eq 'system-time'
-				|| $var eq 'user-time' )
+				|| $var eq 'user-time'
+				|| $var eq 'throttled-time'
+				|| $var eq 'burst-time'
+				|| $var eq 'core_sched.force_idle-time' )
 			{
 				$new_value = $new_value / $self->{time_divider};
 			}
 			$new_value = $new_value / 300;
-		}
+		} ## end if ( $new_value != 0 )
 		return $new_value;
 	} ## end if ( !defined( $self->{cache}{$name}{$var}...))
 
@@ -869,12 +880,15 @@ sub cache_process {
 		if ( $new_value != 0 ) {
 			if (   $var eq 'cpu-time'
 				|| $var eq 'system-time'
-				|| $var eq 'user-time' )
+				|| $var eq 'user-time'
+				|| $var eq 'throttled-time'
+				|| $var eq 'burst-time'
+				|| $var eq 'core_sched.force_idle-time' )
 			{
 				$new_value = $new_value / $self->{time_divider};
 			}
 			$new_value = $new_value / 300;
-		}
+		} ## end if ( $new_value != 0 )
 		if ( $new_value > 10000000000 ) {
 			$self->{new_cache}{$name}{$var} = 0;
 			return 0;
@@ -885,12 +899,15 @@ sub cache_process {
 	if ( $new_value != 0 ) {
 		if (   $var eq 'cpu-time'
 			|| $var eq 'system-time'
-			|| $var eq 'user-time' )
+			|| $var eq 'user-time'
+			|| $var eq 'throttled-time'
+			|| $var eq 'burst-time'
+			|| $var eq 'core_sched.force_idle-time' )
 		{
 			$new_value = $new_value / $self->{time_divider};
 		}
 		$new_value = $new_value / 300;
-	}
+	} ## end if ( $new_value != 0 )
 
 	return $new_value;
 } ## end sub cache_process
