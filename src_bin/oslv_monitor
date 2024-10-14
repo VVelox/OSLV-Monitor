@@ -78,7 +78,7 @@ The following keys are used in the JSON config file.
 Time divider notes.
 
     - cgroups :: While the default for usec to sec conversion should be 1000000,
-              some settings report the value in picoseconds, requiring 1000000000.
+              some settings report the value in nanoseconds, requiring 1000000000.
         Default :: 1000000
 
     - FreeBSD :: not used

@@ -89,7 +89,7 @@ Initiates the backend object.
 
     - time_divider :: What to use for "usec" to sec conversion. While normally
               the usec counters are microseconds, sometimes the value is in
-              picoseconds, despit the name.
+              nanoseconds, despit the name.
         Default :: 1000000
 
 =cut
@@ -194,8 +194,8 @@ sub run {
 		oslvms => {},
 		has    => {
 			'linux_mem_stats' => 1,
-			'rwdops'          => 1,
-			'rwdbytes'        => 1,
+			'rwdops'          => 0,
+			'rwdbytes'        => 0,
 			'rwdblocks'       => 0,
 			'signals-taken'   => 0,
 			'recv_sent_msgs'  => 0,
@@ -693,6 +693,8 @@ sub run {
 			if ( -f $base_dir . '/io.stat' && -r $base_dir . '/io.stat' ) {
 				eval { $io_stats_raw = read_file( $base_dir . '/io.stat' ); };
 				if ( defined($io_stats_raw) ) {
+					$data->{has}{rwdops}=1;
+					$data->{has}{rwdbytes}=1;
 					my @io_stats_split = split( /\n/, $io_stats_raw );
 					foreach my $line (@io_stats_split) {
 						my @line_split = split( /\s/, $line );
