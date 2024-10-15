@@ -1,5 +1,8 @@
 Revision history for OSLV-Monitor
 
+1.0.2   2024-10-15/17:30
+        - add zero stats if the cache is new to prevent spikes at start
+
 1.0.1   2024-10-15/16:30
         - drop cgroupns use
 
