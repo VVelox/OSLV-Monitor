@@ -515,11 +515,11 @@ sub run {
 	#
 	# gets of procs for finding a list of containers
 	#
-	my $ps_output = `ps -haxo pid,uid,gid,cgroupns,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
-	if ( $? != 0 ) {
-		$self->{cgroupns_usable} = 0;
-		$ps_output = `ps -haxo pid,uid,gid,%cpu,%mem,rss,vsize,trs,drs,size,etimes,cgroup 2> /dev/null`;
-	}
+#	my $ps_output = `ps -haxo pid,uid,gid,cgroupns,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
+#	if ( $? != 0 ) {
+#		$self->{cgroupns_usable} = 0;
+	my $ps_output = `ps -haxo pid,uid,gid,%cpu,%mem,rss,vsize,trs,drs,size,etimes,cgroup 2> /dev/null`;
+#	}
 	my @ps_output_split = split( /\n/, $ps_output );
 	my %found_cgroups;
 	my %cgroups_percpu;
@@ -539,13 +539,13 @@ sub run {
 		my $vol_ctxt_switches   = 0;
 		my $invol_ctxt_switches = 0;
 		my ( $pid, $uid, $gid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup );
-		if ( $self->{cgroupns_usable} ) {
-			( $pid, $uid, $gid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )
-				= split( /\s+/, $line );
-		} else {
-			( $pid, $uid, $gid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )
-				= split( /\s+/, $line );
-		}
+#		if ( $self->{cgroupns_usable} ) {
+#			( $pid, $uid, $gid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )#
+#				= split( /\s+/, $line );
+#		} else {
+		( $pid, $uid, $gid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )
+		= split( /\s+/, $line );
+#		}
 		if ( $cgroup =~ /^0\:\:\// ) {
 
 			my $cache_name = 'proc-' . $pid . '-' . $uid . '-' . $gid . '-' . $cgroup;
@@ -617,8 +617,8 @@ sub run {
 	# build a list of mappings
 	#
 	foreach my $cgroup ( keys(%found_cgroups) ) {
-		my $cgroupns = $found_cgroups{$cgroup};
-		my $map_to   = $self->cgroup_mapping( $cgroup, $cgroupns );
+		#my $cgroupns = $found_cgroups{$cgroup};
+		my $map_to   = $self->cgroup_mapping( $cgroup );
 		if ( defined($map_to) ) {
 			$self->{mappings}{$cgroup} = $map_to;
 		}
@@ -777,7 +777,7 @@ sub usable {
 sub cgroup_mapping {
 	my $self        = $_[0];
 	my $cgroup_name = $_[1];
-	my $cgroupns    = $_[2];
+	#my $cgroupns    = $_[2];
 
 	if ( !defined($cgroup_name) ) {
 		return undef;
