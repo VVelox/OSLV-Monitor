@@ -529,10 +529,7 @@ sub run {
 											}
 										}
 									} ## end if ( defined( $net_work_info->{if} ) && defined...)
-									push(
-										@{ $self->{ $cgroup_jank_type . '_info' }{ $pod_name }{ip} },
-										$net_work_info
-									);
+									push( @{ $self->{ $cgroup_jank_type . '_info' }{$pod_name}{ip} }, $net_work_info );
 								} ## end if ( ref($current_network) eq 'HASH' && ref...)
 							} ## end foreach my $network_to_process (@podman_networks)
 						} ## end if ( defined($inspect_parsed) && ref($inspect_parsed...))
@@ -831,6 +828,9 @@ sub cgroup_mapping {
 	if ( $cgroup_name =~ /^0\:\:\/system\.slice\/docker\-[a-zA-Z0-9]+\.scope/ ) {
 		$cgroup_name =~ s/^0\:\:\/system\.slice\/docker\-//;
 		$cgroup_name =~ s/\.scope.*$//;
+		if ( defined( $self->{docker_mapping}{$cgroup_name} ) ) {
+			return 'd_' . $self->{docker_mapping}{$cgroup_name}{name};
+		}
 		return 'd_' . $cgroup_name;
 	} elsif ( $cgroup_name =~ /^0\:\:\/docker\// ) {
 		$cgroup_name =~ s/^0\:\:\/docker\///;
