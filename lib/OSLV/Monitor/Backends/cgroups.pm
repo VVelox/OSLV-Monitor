@@ -438,17 +438,28 @@ sub run {
 						$pod_id = $pod->{'ID'};
 					}
 
-					if ( defined($pod_id) && defined( $pod->{Names} ) && defined( $pod->{Names}[0] ) ) {
+					my $pod_name;
+					if ( defined( $pod->{'PodName'} )
+						&& ( $pod->{'PodName'} ne '' ) )
+					{
+						$pod_name = $pod->{'PodName'};
+					} elsif ( defined( $pod->{'Names'} )
+						&& ( ref( $pod->{'Names'} ) eq '' ) )
+					{
+						$pod_name = $pod->{'Names'};
+					} elsif ( defined( $pod->{'Names'} )
+						&& ( ref( $pod->{'Names'} ) eq 'ARRAY' )
+						&& defined( $pod->{'Names'}[0] )
+						&& ( ref( $pod->{'Names'}[0] ) eq '' ) )
+					{
+						$pod_name = $pod->{'Names'}[0];
+					}
+
+					if ( defined($pod_id) && defined($pod_name) ) {
 						$self->{ $cgroup_jank_type . '_mapping' }{$pod_id} = {
-							podname  => $pod->{PodName},
+							name     => $pod_name,
 							Networks => $pod->{Networks},
 						};
-						if ( $self->{ $cgroup_jank_type . '_mapping' }{$pod_id}{podname} ne '' ) {
-							$self->{ $cgroup_jank_type . '_mapping' }{$pod_id}{name}
-								= $self->{ $cgroup_jank_type . '_mapping' }{$pod_id}{podname} . '-' . $pod->{Names}[0];
-						} else {
-							$self->{ $cgroup_jank_type . '_mapping' }{$pod_id}{name} = $pod->{Names}[0];
-						}
 						my $inspect_output = `$cgroup_jank_type inspect $pod_id 2> /dev/null`;
 						my $inspect_parsed;
 						$self->{ $cgroup_jank_type . '_info' }{$pod_id} = { ip => [] };
@@ -519,13 +530,13 @@ sub run {
 										}
 									} ## end if ( defined( $net_work_info->{if} ) && defined...)
 									push(
-										@{ $self->{ $cgroup_jank_type . '_info' }{ $pod->{Names}[0] }{ip} },
+										@{ $self->{ $cgroup_jank_type . '_info' }{ $pod_name }{ip} },
 										$net_work_info
 									);
 								} ## end if ( ref($current_network) eq 'HASH' && ref...)
 							} ## end foreach my $network_to_process (@podman_networks)
 						} ## end if ( defined($inspect_parsed) && ref($inspect_parsed...))
-					} ## end if ( defined($pod_id) && defined( $pod->{Names...}))
+					} ## end if ( defined($pod_id) && defined($pod_name...))
 				} ## end foreach my $pod ( @{$podman_parsed} )
 			} ## end if ( defined($podman_parsed) && ref($podman_parsed...))
 		} ## end if ( $? == 0 )
