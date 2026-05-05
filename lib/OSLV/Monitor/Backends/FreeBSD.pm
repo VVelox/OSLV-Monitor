@@ -15,11 +15,11 @@ OSLV::Monitor::Backends::FreeBSD - backend for FreeBSD jails
 
 =head1 VERSION
 
-Version 0.0.4
+Version 0.0.5
 
 =cut
 
-our $VERSION = '0.0.4';
+our $VERSION = '0.0.5';
 
 =head1 SYNOPSIS
 
@@ -177,7 +177,6 @@ sub run {
 	# get a list of jails for jid to name mapping
 	my $output = `/usr/sbin/jls -h --libxo json 2> /dev/null`;
 	my $jls;
-	my %jid_to_name;
 	my @IP_keys = ( 'ip4.addr', 'ip6.addr' );
 	eval { $jls = decode_json($output) };
 	if ($@) {
@@ -193,111 +192,113 @@ sub run {
 	{
 		foreach my $jls_jail ( @{ $jls->{'jail-information'}{jail} } ) {
 			if ( defined( $jls_jail->{name} ) && defined( $jls_jail->{jid} ) ) {
-				my $jname = $jls_jail->{name};
 
-				$jid_to_name{ $jls_jail->{jid} } = $jname;
+				my $jname        = $jls_jail->{name};
+				my $include_jail = $self->{'obj'}->include($jname);
 
-				$data->{oslvms}{$jname} = clone($base_stats);
+				if ($include_jail) {
+					$data->{oslvms}{$jname} = clone($base_stats);
 
-				# finds each ip ifconfig shows in a jail
-				my $output = `ifconfig -j $jname 2> /dev/null`;
-				my %found_IPv4;
-				my %found_IPv6;
-				if ( $? eq 0 ) {
-					my @output_split = split( /\n/, $output );
-					my $interface;
-					foreach my $line (@output_split) {
-						if ( $line =~ /^[a-zA-Z].*\:[\ \t]+flags\=/ ) {
-							$interface = $line;
-							$interface =~ s/\:[\ \t]+flags.*//;
-						} elsif ( $line =~ /^[\ \t]+inet6 /
-							&& defined($interface) )
-						{
-							$line =~ s/^[\ \t]+inet6 //;
-							$line =~ s/\ .*$//;
-							$line =~ s/\%.*$//;
-							$found_IPv6{$line} = $interface;
-						} elsif ( $line =~ /^[\ \t]+inet /
-							&& defined($interface) )
-						{
-							$line =~ s/^[\ \t]+inet //;
-							$line =~ s/ .*$//;
-							$found_IPv4{$line} = $interface;
-						}
-					} ## end foreach my $line (@output_split)
-				} ## end if ( $? eq 0 )
-
-				foreach my $ip_key (@IP_keys) {
-					my @current_IPs;
-
-					if ( $ip_key eq 'ip4.addr' ) {
-						@current_IPs = keys(%found_IPv4);
-					} else {
-						@current_IPs = keys(%found_IPv6);
-					}
-
-					if (   defined( $jls_jail->{$ip_key} )
-						&& ref( $jls_jail->{$ip_key} ) eq 'ARRAY'
-						&& defined( $jls_jail->{$ip_key}[0] ) )
-					{
-						foreach my $ip ( @{ $jls_jail->{$ip_key} } ) {
-							if ( ref($ip) eq '' && !defined( $found_IPv4{$ip} ) && !defined( $found_IPv6{$ip} ) ) {
-								if (   $ip =~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/
-									|| $ip =~ /^[\:0-9a-fA-F]+$/ )
-								{
-									push( @current_IPs, $ip );
-								}
-							}
-						}
-					} ## end if ( defined( $jls_jail->{$ip_key} ) && ref...)
-					foreach my $ip (@current_IPs) {
-						my $ip_if;
-						my $ip_gw;
-						my $ip_gw_if;
-
-						if ( $ip_key eq 'ip4.addr'
-							&& defined( $found_IPv4{$ip} ) )
-						{
-							$ip_if = $found_IPv4{$ip};
-						} elsif ( $ip_key eq 'ip6.addr'
-							&& defined( $found_IPv6{$ip} ) )
-						{
-							$ip_if = $found_IPv6{$ip};
-						}
-						# set the ip type flag for netstat
-						my $ip_flag = '-6';
-						if ( $ip_key eq 'ip4.addr' ) {
-							$ip_flag = '-4';
-						}
-
-						# fetch netstat route info for the jail
-						my $output = `route -n -j $jname $ip_flag show default 2> /dev/null`;
-						if ( $? eq 0 ) {
-							my @output_split = split( /\n/, $output );
-							foreach my $line (@output_split) {
-								if ( $line =~ /gateway\:[\ \t]/ ) {
-									$line =~ s/.*gateway\:[\ \t]+//;
-									$line =~ s/[\ \t]*$//;
-									$ip_gw = $line;
-								} elsif ( $line =~ /interface:[\ \t]/ ) {
-									$line =~ s/.*interface\:[\ \t]+//;
-									$line =~ s/[\ \t]*$//;
-									$ip_gw_if = $line;
-								}
-							} ## end foreach my $line (@output_split)
-						} ## end if ( $? eq 0 )
-
-						push(
-							@{ $data->{oslvms}{$jname}{ip} },
+					# finds each ip ifconfig shows in a jail
+					my $output = `ifconfig -j $jname 2> /dev/null`;
+					my %found_IPv4;
+					my %found_IPv6;
+					if ( $? eq 0 ) {
+						my @output_split = split( /\n/, $output );
+						my $interface;
+						foreach my $line (@output_split) {
+							if ( $line =~ /^[a-zA-Z].*\:[\ \t]+flags\=/ ) {
+								$interface = $line;
+								$interface =~ s/\:[\ \t]+flags.*//;
+							} elsif ( $line =~ /^[\ \t]+inet6 /
+								&& defined($interface) )
 							{
-								ip    => $ip,
-								if    => $ip_if,
-								gw    => $ip_gw,
-								gw_if => $ip_gw_if,
+								$line =~ s/^[\ \t]+inet6 //;
+								$line =~ s/\ .*$//;
+								$line =~ s/\%.*$//;
+								$found_IPv6{$line} = $interface;
+							} elsif ( $line =~ /^[\ \t]+inet /
+								&& defined($interface) )
+							{
+								$line =~ s/^[\ \t]+inet //;
+								$line =~ s/ .*$//;
+								$found_IPv4{$line} = $interface;
 							}
-						);
-					} ## end foreach my $ip (@current_IPs)
-				} ## end foreach my $ip_key (@IP_keys)
+						} ## end foreach my $line (@output_split)
+					} ## end if ( $? eq 0 )
+
+					foreach my $ip_key (@IP_keys) {
+						my @current_IPs;
+
+						if ( $ip_key eq 'ip4.addr' ) {
+							@current_IPs = keys(%found_IPv4);
+						} else {
+							@current_IPs = keys(%found_IPv6);
+						}
+
+						if (   defined( $jls_jail->{$ip_key} )
+							&& ref( $jls_jail->{$ip_key} ) eq 'ARRAY'
+							&& defined( $jls_jail->{$ip_key}[0] ) )
+						{
+							foreach my $ip ( @{ $jls_jail->{$ip_key} } ) {
+								if ( ref($ip) eq '' && !defined( $found_IPv4{$ip} ) && !defined( $found_IPv6{$ip} ) ) {
+									if (   $ip =~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/
+										|| $ip =~ /^[\:0-9a-fA-F]+$/ )
+									{
+										push( @current_IPs, $ip );
+									}
+								}
+							}
+						} ## end if ( defined( $jls_jail->{$ip_key} ) && ref...)
+						foreach my $ip (@current_IPs) {
+							my $ip_if;
+							my $ip_gw;
+							my $ip_gw_if;
+
+							if ( $ip_key eq 'ip4.addr'
+								&& defined( $found_IPv4{$ip} ) )
+							{
+								$ip_if = $found_IPv4{$ip};
+							} elsif ( $ip_key eq 'ip6.addr'
+								&& defined( $found_IPv6{$ip} ) )
+							{
+								$ip_if = $found_IPv6{$ip};
+							}
+							# set the ip type flag for netstat
+							my $ip_flag = '-6';
+							if ( $ip_key eq 'ip4.addr' ) {
+								$ip_flag = '-4';
+							}
+
+							# fetch netstat route info for the jail
+							my $output = `route -n -j $jname $ip_flag show default 2> /dev/null`;
+							if ( $? eq 0 ) {
+								my @output_split = split( /\n/, $output );
+								foreach my $line (@output_split) {
+									if ( $line =~ /gateway\:[\ \t]/ ) {
+										$line =~ s/.*gateway\:[\ \t]+//;
+										$line =~ s/[\ \t]*$//;
+										$ip_gw = $line;
+									} elsif ( $line =~ /interface:[\ \t]/ ) {
+										$line =~ s/.*interface\:[\ \t]+//;
+										$line =~ s/[\ \t]*$//;
+										$ip_gw_if = $line;
+									}
+								} ## end foreach my $line (@output_split)
+							} ## end if ( $? eq 0 )
+
+							push(
+								@{ $data->{oslvms}{$jname}{ip} },
+								{
+									ip    => $ip,
+									if    => $ip_if,
+									gw    => $ip_gw,
+									gw_if => $ip_gw_if,
+								}
+							);
+						} ## end foreach my $ip (@current_IPs)
+					} ## end foreach my $ip_key (@IP_keys)
+				} ## end if ($include_jail)
 			} ## end if ( defined( $jls_jail->{name} ) && defined...)
 		} ## end foreach my $jls_jail ( @{ $jls->{'jail-information'...}})
 	} ## end if ( defined($jls) && ref($jls) eq 'HASH' ...)
