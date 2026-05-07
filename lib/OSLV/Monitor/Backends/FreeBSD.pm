@@ -3,11 +3,12 @@ package OSLV::Monitor::Backends::FreeBSD;
 use 5.006;
 use strict;
 use warnings;
-use JSON;
-use Clone 'clone';
-use File::Slurp;
+use JSON         qw(decode_json encode_json);
+use Clone        qw(clone);
+use File::Slurp  qw(read_file write_file);
 use List::Util   qw( uniq );
 use Scalar::Util qw(looks_like_number);
+use Time::HiRes  qw(gettimeofday);
 
 =head1 NAME
 
@@ -129,11 +130,26 @@ sub run {
 	my $new_proc_cache = {};
 	my $cache_is_new   = 0;
 	if ( -f $self->{proc_cache} ) {
+		if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+			warn(     'DEBUG, '
+					. join( '.', gettimeofday )
+					. ': backend run loading proc cache "'
+					. $self->{proc_cache}
+					. '"' );
+		}
 		eval {
 			my $raw_cache = read_file( $self->{proc_cache} );
 			$proc_cache = decode_json($raw_cache);
 		};
 		if ($@) {
+			if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+				warn(     'DEBUG, '
+						. join( '.', gettimeofday )
+						. ': backend run proc cache "'
+						. $self->{proc_cache}
+						. '" could not be loaded... '
+						. $@ );
+			}
 			push(
 				@{ $data->{errors} },
 				'reading proc cache "' . $self->{proc_cache} . '" failed... using a empty one...' . $@
@@ -141,8 +157,11 @@ sub run {
 			$data->{cache_failure} = 1;
 			$proc_cache = {};
 			return $data;
-		}
+		} ## end if ($@)
 	} else {
+		if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+			warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': backend run proc cache is new' );
+		}
 		$cache_is_new = 1;
 	}
 
@@ -175,7 +194,17 @@ sub run {
 	};
 
 	# get a list of jails for jid to name mapping
+	if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+		warn(     'DEBUG, '
+				. join( '.', gettimeofday )
+				. ': backend run calling "/usr/sbin/jls -h --libxo json 2> /dev/null"' );
+	}
 	my $output = `/usr/sbin/jls -h --libxo json 2> /dev/null`;
+	if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+		warn(     'DEBUG, '
+				. join( '.', gettimeofday )
+				. ': backend run "/usr/sbin/jls -h --libxo json 2> /dev/null" finished' );
+	}
 	my $jls;
 	my @IP_keys = ( 'ip4.addr', 'ip6.addr' );
 	eval { $jls = decode_json($output) };
@@ -192,18 +221,47 @@ sub run {
 	{
 		foreach my $jls_jail ( @{ $jls->{'jail-information'}{jail} } ) {
 			if ( defined( $jls_jail->{name} ) && defined( $jls_jail->{jid} ) ) {
+				if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+					warn(     'DEBUG, '
+							. join( '.', gettimeofday )
+							. ': backend run processing jname="'
+							. $jls_jail->{name}
+							. '" jid="'
+							. $jls_jail->{jid}
+							. '"' );
+				}
 
 				my $jname        = $jls_jail->{name};
 				my $include_jail = $self->{'obj'}->include($jname);
 
 				if ($include_jail) {
+					if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+						warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': backend run calling clone($base_stats)' );
+					}
+
 					$data->{oslvms}{$jname} = clone($base_stats);
 
+					if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+						warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': backend run done clone($base_stats) done' );
+					}
+
 					# finds each ip ifconfig shows in a jail
+					if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+						warn(     'DEBUG, '
+								. join( '.', gettimeofday )
+								. ': backend run calling "ifconfig -j '
+								. $jname
+								. ' 2> /dev/null"' );
+					}
 					my $output = `ifconfig -j $jname 2> /dev/null`;
 					my %found_IPv4;
 					my %found_IPv6;
 					if ( $? eq 0 ) {
+						if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+							warn(     'DEBUG, '
+									. join( '.', gettimeofday )
+									. ': backend run processing ifconfig info for jail' );
+						}
 						my @output_split = split( /\n/, $output );
 						my $interface;
 						foreach my $line (@output_split) {
@@ -225,7 +283,10 @@ sub run {
 								$found_IPv4{$line} = $interface;
 							}
 						} ## end foreach my $line (@output_split)
-					} ## end if ( $? eq 0 )
+					} elsif ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+						warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': backend run ifconfig exited non-zero' );
+					}
+					## end if ( $? eq 0 )
 
 					foreach my $ip_key (@IP_keys) {
 						my @current_IPs;
@@ -270,7 +331,15 @@ sub run {
 								$ip_flag = '-4';
 							}
 
-							# fetch netstat route info for the jail
+							# fetch route info for the jail
+							if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+								warn(     'DEBUG, '
+										. join( '.', gettimeofday )
+										. ': backend run calling "route -n -j '
+										. $jname . ' '
+										. $ip_flag
+										. ' show default 2> /dev/null"' );
+							}
 							my $output = `route -n -j $jname $ip_flag show default 2> /dev/null`;
 							if ( $? eq 0 ) {
 								my @output_split = split( /\n/, $output );
@@ -285,7 +354,9 @@ sub run {
 										$ip_gw_if = $line;
 									}
 								} ## end foreach my $line (@output_split)
-							} ## end if ( $? eq 0 )
+							} elsif ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+								warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': backend run route exited non-zero' );
+							}
 
 							push(
 								@{ $data->{oslvms}{$jname}{ip} },
@@ -345,11 +416,25 @@ sub run {
 	};
 
 	foreach my $jail (@found_jails) {
+		if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+			warn(     'DEBUG, '
+					. join( '.', gettimeofday )
+					. ': backend run calling "/bin/ps ax --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command,nsigs -J '
+					. $jail
+					. ' 2> /dev/null"' );
+		}
 		$output
 			= `/bin/ps ax --libxo json -o %cpu,%mem,pid,acflag,cow,dsiz,etimes,inblk,jail,majflt,minflt,msgrcv,msgsnd,nivcsw,nswap,nvcsw,oublk,rss,ssiz,systime,time,tsiz,usertime,vsz,pid,gid,uid,command,nsigs -J $jail 2> /dev/null`;
 		my $ps;
 		eval { $ps = decode_json($output); };
 		if ( !$@ ) {
+			if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+				warn(     'DEBUG, '
+						. join( '.', gettimeofday )
+						. ': backend run processing proc info for jail '
+						. $jail
+						. '' );
+			}
 			foreach my $proc ( @{ $ps->{'process-information'}{process} } ) {
 				if ( $proc->{'elapsed-times'} ne '-' ) {
 					my $cache_name
@@ -412,12 +497,31 @@ sub run {
 	} ## end foreach my $jail (@found_jails)
 
 	# save the proc cache for next run
+	if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+		warn(     'DEBUG, '
+				. join( '.', gettimeofday )
+				. ': backend run writing proc cache to "'
+				. $self->{proc_cache}
+				. '"' );
+	}
 	eval { write_file( $self->{proc_cache}, encode_json($new_proc_cache) ); };
 	if ($@) {
+		if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+			warn(     'DEBUG, '
+					. join( '.', gettimeofday )
+					. ': backend run errored writing proc cache to "'
+					. $self->{proc_cache} . '"... '
+					. $@ );
+		}
 		push( @{ $data->{errors} }, 'saving proc cache failed, "' . $self->{proc_cache} . '"... ' . $@ );
-	}
+	} ## end if ($@)
 
 	if ($cache_is_new) {
+		if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+			warn(     'DEBUG, '
+					. join( '.', gettimeofday )
+					. ': backend run cache is new so not returning any oslvm info and zeroing totals' );
+		}
 		delete( $data->{oslvms} );
 		$data->{oslvms} = {};
 		my @total_keys = keys( %{ $data->{totals} } );
@@ -427,6 +531,10 @@ sub run {
 			}
 		}
 	} ## end if ($cache_is_new)
+
+	if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+		warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': backend run done' );
+	}
 
 	return $data;
 } ## end sub run

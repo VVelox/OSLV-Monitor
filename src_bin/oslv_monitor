@@ -1,15 +1,15 @@
 #!perl
 
-use JSON;
+use JSON qw(decode_json encode_json);
 use strict;
 use warnings;
-use Getopt::Long;
-use JSON;
-use OSLV::Monitor;
-use MIME::Base64;
-use IO::Compress::Gzip qw(gzip $GzipError);
-use File::Slurp;
-use Pod::Usage;
+use Getopt::Long       qw(GetOptions);
+use OSLV::Monitor      ();
+use MIME::Base64       qw(encode_base64);
+use IO::Compress::Gzip qw(gzip);
+use File::Slurp        qw(read_file write_file);
+use Pod::Usage         qw(pod2usage);
+use Time::HiRes        qw(gettimeofday);
 
 =head1 NAME
 
@@ -138,6 +138,9 @@ if ($help) {
 }
 
 if ( -f $config_file ) {
+	if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+		warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': reading in config file "' . $config_file . '"' );
+	}
 	eval {
 		my $raw_config    = read_file($config_file);
 		my $parsed_config = decode_json($raw_config);
@@ -163,6 +166,10 @@ if ( -f $config_file ) {
 	}
 } ## end if ( -f $config_file )
 
+if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+	warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': initing module' );
+}
+
 my $monitor = OSLV::Monitor->new(
 	backend      => $backend,
 	base_dir     => $base_dir,
@@ -172,7 +179,14 @@ my $monitor = OSLV::Monitor->new(
 );
 
 if ( !-d $base_dir ) {
+	if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+		warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': creating "' . $base_dir . '"' );
+	}
 	mkdir($base_dir) || die( 'Unable to mkdir "' . $base_dir . '"' );
+}
+
+if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+	warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': calling load' );
 }
 
 eval { $monitor->load; };
@@ -181,13 +195,25 @@ if ($@) {
 	exit 1;
 }
 
+if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+	warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': calling run' );
+}
+
 my $data = encode_json( $monitor->run );
 
 if ( !$quiet ) {
 	print $data. "\n";
 }
 
+if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+	warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': writing out "' . $base_dir . '/json"' );
+}
+
 write_file( $base_dir . '/json', $data . "\n" );
+
+if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+	warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': writing out "' . $base_dir . '/json"' );
+}
 
 my $toReturnCompressed;
 gzip \$data => \$toReturnCompressed;
@@ -195,4 +221,14 @@ my $compressed = encode_base64($toReturnCompressed);
 $compressed =~ s/\n//g;
 $compressed = $compressed . "\n";
 
+if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+	warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': writing out "' . $base_dir . '/snmp"' );
+}
+
 write_file( $base_dir . '/snmp', $compressed );
+
+if ( $ENV{'OSLVM_MONITOR_DEBUG'} ) {
+	warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': done' );
+}
+
+exit 0;
