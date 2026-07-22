@@ -227,17 +227,21 @@ sub run {
 			dbytes                         => 0,
 			dios                           => 0,
 			'core_sched.force_idle_usec'   => 0,
+			'core_sched.force_idle-time'   => 0,
 			nr_periods                     => 0,
 			nr_throttled                   => 0,
 			throttled_usec                 => 0,
+			'throttled-time'               => 0,
 			nr_bursts                      => 0,
 			burst_usec                     => 0,
+			'burst-time'                   => 0,
 			anon                           => 0,
 			file                           => 0,
 			kernel                         => 0,
 			kernel_stack                   => 0,
 			pagetables                     => 0,
 			sec_pagetables                 => 0,
+			percpu                         => 0,
 			sock                           => 0,
 			vmalloc                        => 0,
 			shmem                          => 0,
@@ -282,8 +286,11 @@ sub run {
 			pglazyfreed                    => 0,
 			zswpin                         => 0,
 			zswpout                        => 0,
+			zswpwb                         => 0,
 			thp_fault_alloc                => 0,
 			thp_collapse_alloc             => 0,
+			thp_swpout                     => 0,
+			thp_swpout_fallback            => 0,
 			rss                            => 0,
 			'data-size'                    => 0,
 			'text-size'                    => 0,
@@ -329,17 +336,21 @@ sub run {
 		dbytes                         => 0,
 		dios                           => 0,
 		'core_sched.force_idle_usec'   => 0,
+		'core_sched.force_idle-time'   => 0,
 		nr_periods                     => 0,
 		nr_throttled                   => 0,
 		throttled_usec                 => 0,
+		'throttled-time'               => 0,
 		nr_bursts                      => 0,
 		burst_usec                     => 0,
+		'burst-time'                   => 0,
 		anon                           => 0,
 		file                           => 0,
 		kernel                         => 0,
 		kernel_stack                   => 0,
 		pagetables                     => 0,
 		sec_pagetables                 => 0,
+		percpu                         => 0,
 		sock                           => 0,
 		vmalloc                        => 0,
 		shmem                          => 0,
@@ -384,8 +395,11 @@ sub run {
 		pglazyfreed                    => 0,
 		zswpin                         => 0,
 		zswpout                        => 0,
+		zswpwb                         => 0,
 		thp_fault_alloc                => 0,
 		thp_collapse_alloc             => 0,
+		thp_swpout                     => 0,
+		thp_swpout_fallback            => 0,
 		rss                            => 0,
 		'data-size'                    => 0,
 		'text-size'                    => 0,
@@ -462,7 +476,7 @@ sub run {
 						};
 						my $inspect_output = `$cgroup_jank_type inspect $pod_id 2> /dev/null`;
 						my $inspect_parsed;
-						$self->{ $cgroup_jank_type . '_info' }{$pod_id} = { ip => [] };
+						$self->{ $cgroup_jank_type . '_info' }{$pod_name} = { ip => [] };
 						eval { $inspect_parsed = decode_json($inspect_output) };
 						if (   defined($inspect_parsed)
 							&& ref($inspect_parsed) eq 'ARRAY'
@@ -750,7 +764,7 @@ sub run {
 						my @line_split = split( /\s/, $line );
 						shift(@line_split);
 						foreach my $item (@line_split) {
-							my ( $stat, $value ) = split( /\=/, $line, 2 );
+							my ( $stat, $value ) = split( /\=/, $item, 2 );
 							if ( defined( $stat_mapping->{$stat} ) ) {
 								$stat = $stat_mapping->{$stat};
 							}
@@ -771,7 +785,7 @@ sub run {
 	# save the proc cache for next run
 	eval { write_file( $self->{cache_file}, encode_json( $self->{new_cache} ) ); };
 	if ($@) {
-		push( @{ $data->{errors} }, 'saving proc cache failed, "' . $self->{proc_cache} . '"... ' . $@ );
+		push( @{ $data->{errors} }, 'saving proc cache failed, "' . $self->{cache_file} . '"... ' . $@ );
 		$data->{cache_failure} = 1;
 	}
 
