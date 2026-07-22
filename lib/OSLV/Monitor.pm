@@ -207,8 +207,7 @@ sub run {
 	}
 
 	my $to_return_data;
-	#	eval { $to_return_data = $self->{backend_mod}->run };
-	$to_return_data = $self->{backend_mod}->run;
+	eval { $to_return_data = $self->{backend_mod}->run };
 	if ($@) {
 		return {
 			version     => $self->{version},

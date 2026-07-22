@@ -155,8 +155,11 @@ sub run {
 				'reading proc cache "' . $self->{proc_cache} . '" failed... using a empty one...' . $@
 			);
 			$data->{cache_failure} = 1;
-			$proc_cache = {};
-			return $data;
+			# treat a corrupt/truncated cache as a fresh one so this run
+			# regenerates and overwrites it with valid data instead of getting
+			# permanently stuck on the bad file
+			$proc_cache   = {};
+			$cache_is_new = 1;
 		} ## end if ($@)
 	} else {
 		if ( $ENV{'OSLV_MONITOR_DEBUG'} ) {
@@ -515,7 +518,9 @@ sub run {
 				. $self->{proc_cache}
 				. '"' );
 	}
-	eval { write_file( $self->{proc_cache}, encode_json($new_proc_cache) ); };
+	# written atomically so an interrupted write cannot leave behind a
+	# truncated/empty cache file
+	eval { write_file( $self->{proc_cache}, { atomic => 1 }, encode_json($new_proc_cache) ); };
 	if ($@) {
 		if ( $ENV{'OSLV_MONITOR_DEBUG'} ) {
 			warn(     'DEBUG, '

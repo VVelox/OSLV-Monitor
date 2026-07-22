@@ -316,7 +316,11 @@ sub run {
 				'reading proc cache "' . $self->{cache_file} . '" failed... using a empty one...' . $@
 			);
 			$data->{cache_failure} = 1;
-			return $data;
+			# treat a corrupt/truncated cache as a fresh one so this run
+			# regenerates and overwrites it with valid data instead of getting
+			# permanently stuck on the bad file
+			$self->{cache} = {};
+			$cache_is_new  = 1;
 		}
 	} else {
 		$cache_is_new = 1;
@@ -813,8 +817,9 @@ sub run {
 
 	$data->{uid_mapping} = $self->{uid_mapping};
 
-	# save the proc cache for next run
-	eval { write_file( $self->{cache_file}, encode_json( $self->{new_cache} ) ); };
+	# save the proc cache for next run... written atomically so an interrupted
+	# write cannot leave behind a truncated/empty cache file
+	eval { write_file( $self->{cache_file}, { atomic => 1 }, encode_json( $self->{new_cache} ) ); };
 	if ($@) {
 		push( @{ $data->{errors} }, 'saving proc cache failed, "' . $self->{cache_file} . '"... ' . $@ );
 		$data->{cache_failure} = 1;
