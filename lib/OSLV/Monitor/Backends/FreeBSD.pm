@@ -16,11 +16,11 @@ OSLV::Monitor::Backends::FreeBSD - backend for FreeBSD jails
 
 =head1 VERSION
 
-Version 0.0.5
+Version 0.0.6
 
 =cut
 
-our $VERSION = '0.0.5';
+our $VERSION = '0.0.6';
 
 =head1 SYNOPSIS
 
@@ -245,6 +245,14 @@ sub run {
 						warn( 'DEBUG, ' . join( '.', gettimeofday ) . ': backend run done clone($base_stats) done' );
 					}
 
+					# record the jail's root path as reported by jls
+					if (   defined( $jls_jail->{path} )
+						&& ref( $jls_jail->{path} ) eq ''
+						&& $jls_jail->{path} ne '' )
+					{
+						push( @{ $data->{oslvms}{$jname}{path} }, $jls_jail->{path} );
+					}
+
 					# finds each ip ifconfig shows in a jail
 					if ( $ENV{'OSLV_MONITOR_DEBUG'} ) {
 						warn(     'DEBUG, '
@@ -459,7 +467,7 @@ sub run {
 								$seconds
 									= $seconds + ( 3600 * $time_split[0] ) + ( 60 * $time_split[1] ) + $time_split[2];
 							} else {
-								$seconds = $seconds + ( 60 * $time_split[1] ) + $time_split[1];
+								$seconds = $seconds + ( 60 * $time_split[0] ) + $time_split[1];
 							}
 							$stat_value = $seconds;
 							$proc->{$stat} = $stat_value;
@@ -468,10 +476,13 @@ sub run {
 						if ( looks_like_number($stat_value) ) {
 							if ( $counters->{$stat} ) {
 								if (   defined( $proc_cache->{$cache_name} )
-									&& defined( $proc_cache->{$cache_name}{$stat} ) )
+									&& defined( $proc_cache->{$cache_name}{$stat} )
+									&& $stat_value >= $proc_cache->{$cache_name}{$stat} )
 								{
 									$stat_value = ( $stat_value - $proc_cache->{$cache_name}{$stat} ) / 300;
 								} else {
+									# either no cached previous value or the counter went
+									# backwards (reset/PID reuse), so treat it as a fresh counter
 									$stat_value = $stat_value / 300;
 								}
 								$data->{oslvms}{$jail}{$stat}

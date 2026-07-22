@@ -1,5 +1,14 @@
 Revision history for OSLV-Monitor
 
+1.0.5   2026-07-22/12:00
+        - cgroups: fix io.stat parsing so IO stats are recorded
+        - cgroups: emit throttled/burst/force_idle-time, percpu, thp_swpout, and zswpwb stats
+        - cgroups: fix container IP mapping key and cache-save error message
+        - cgroups: populate path with container rootfs, falling back to cgroup path
+        - FreeBSD: fix MM:SS CPU time parsing
+        - FreeBSD: guard against counter rollback
+        - FreeBSD: populate jail path
+
 1.0.4   2026-05-09/14:30
         - fix handling of include/exclude stuff for FreeBSD
         - add OSLV_MONITOR_DEBUG env

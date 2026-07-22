@@ -16,11 +16,11 @@ OSLV::Monitor::Backends::cgroups - Backend for Linux cgroups.
 
 =head1 VERSION
 
-Version 1.0.3
+Version 1.0.4
 
 =cut
 
-our $VERSION = '1.0.3';
+our $VERSION = '1.0.4';
 
 =head1 SYNOPSIS
 
@@ -476,8 +476,24 @@ sub run {
 						};
 						my $inspect_output = `$cgroup_jank_type inspect $pod_id 2> /dev/null`;
 						my $inspect_parsed;
-						$self->{ $cgroup_jank_type . '_info' }{$pod_name} = { ip => [] };
+						$self->{ $cgroup_jank_type . '_info' }{$pod_name} = { ip => [], path => undef };
 						eval { $inspect_parsed = decode_json($inspect_output) };
+						# record the container's root filesystem path when available
+						if (   defined($inspect_parsed)
+							&& ref($inspect_parsed) eq 'ARRAY'
+							&& defined( $inspect_parsed->[0] )
+							&& ref( $inspect_parsed->[0] ) eq 'HASH'
+							&& defined( $inspect_parsed->[0]{GraphDriver} )
+							&& ref( $inspect_parsed->[0]{GraphDriver} ) eq 'HASH'
+							&& defined( $inspect_parsed->[0]{GraphDriver}{Data} )
+							&& ref( $inspect_parsed->[0]{GraphDriver}{Data} ) eq 'HASH'
+							&& defined( $inspect_parsed->[0]{GraphDriver}{Data}{MergedDir} )
+							&& ref( $inspect_parsed->[0]{GraphDriver}{Data}{MergedDir} ) eq ''
+							&& $inspect_parsed->[0]{GraphDriver}{Data}{MergedDir} ne '' )
+						{
+							$self->{ $cgroup_jank_type . '_info' }{$pod_name}{path}
+								= $inspect_parsed->[0]{GraphDriver}{Data}{MergedDir};
+						}
 						if (   defined($inspect_parsed)
 							&& ref($inspect_parsed) eq 'ARRAY'
 							&& defined( $inspect_parsed->[0] )
@@ -702,6 +718,21 @@ sub run {
 			my $base_dir = $cgroup;
 			$base_dir =~ s/^0\:\://;
 			$base_dir = '/sys/fs/cgroup' . $base_dir;
+
+			# record the root path for this oslvm... for containers prefer the
+			# rootfs reported by "inspect", falling back to the cgroup fs path
+			my $root_path = $base_dir;
+			if ( $name =~ /^[pd]\_/ ) {
+				my $container_name = $name;
+				$container_name =~ s/^[pd]\_//;
+				my $info_key = ( $name =~ /^p\_/ ) ? 'podman_info' : 'docker_info';
+				if ( defined( $self->{$info_key}{$container_name}{path} )
+					&& $self->{$info_key}{$container_name}{path} ne '' )
+				{
+					$root_path = $self->{$info_key}{$container_name}{path};
+				}
+			}
+			push( @{ $data->{oslvms}{$name}{path} }, $root_path );
 
 			my $cpu_stats_raw;
 			if ( -f $base_dir . '/cpu.stat' && -r $base_dir . '/cpu.stat' ) {
