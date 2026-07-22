@@ -594,6 +594,7 @@ sub run {
 	my %cgroups_etimes;
 	my %cgroups_invvol_ctxt_switches;
 	my %cgroups_vol_ctxt_switches;
+	my %cgroups_root_paths;
 
 	foreach my $line (@ps_output_split) {
 		$line =~ s/^\s+//;
@@ -612,6 +613,14 @@ sub run {
 			my $cache_name = 'proc-' . $pid . '-' . $uid . '-' . $gid . '-' . $cgroup;
 
 			$found_cgroups{$cgroup}           = $cgroup;
+
+			# save the root fs path as seen by this process, resolving chroots
+			# and the like... for the usual case this is just /
+			my $proc_root_path = readlink( '/proc/' . $pid . '/root' );
+			if ( defined($proc_root_path) ) {
+				$cgroups_root_paths{$cgroup}{$proc_root_path} = 1;
+			}
+
 			$data->{totals}{'percent-cpu'}    = $data->{totals}{'percent-cpu'} + $percpu;
 			$data->{totals}{'percent-memory'} = $data->{totals}{'percent-memory'} + $permem;
 			$data->{totals}{rss}              = $data->{totals}{rss} + $rss;
@@ -723,9 +732,11 @@ sub run {
 			$base_dir =~ s/^0\:\://;
 			$base_dir = '/sys/fs/cgroup' . $base_dir;
 
-			# record the root path for this oslvm... for containers prefer the
-			# rootfs reported by "inspect", falling back to the cgroup fs path
-			my $root_path = $base_dir;
+			# record the root fs path for this oslvm, akin to the path for a FreeBSD
+			# jail... for containers prefer the rootfs reported by "inspect" as the
+			# procs there are in their own mount namespace and will see it as just /,
+			# otherwise use the roots the procs see, which handles chroots and the like
+			my @root_paths;
 			if ( $name =~ /^[pd]\_/ ) {
 				my $container_name = $name;
 				$container_name =~ s/^[pd]\_//;
@@ -733,10 +744,16 @@ sub run {
 				if ( defined( $self->{$info_key}{$container_name}{path} )
 					&& $self->{$info_key}{$container_name}{path} ne '' )
 				{
-					$root_path = $self->{$info_key}{$container_name}{path};
+					push( @root_paths, $self->{$info_key}{$container_name}{path} );
 				}
 			}
-			push( @{ $data->{oslvms}{$name}{path} }, $root_path );
+			if ( !@root_paths && defined( $cgroups_root_paths{$cgroup} ) ) {
+				@root_paths = sort( keys( %{ $cgroups_root_paths{$cgroup} } ) );
+			}
+			if ( !@root_paths ) {
+				push( @root_paths, '/' );
+			}
+			push( @{ $data->{oslvms}{$name}{path} }, @root_paths );
 
 			my $cpu_stats_raw;
 			if ( -f $base_dir . '/cpu.stat' && -r $base_dir . '/cpu.stat' ) {

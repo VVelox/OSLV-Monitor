@@ -8,6 +8,9 @@ Revision history for OSLV-Monitor
         - FreeBSD: fix MM:SS CPU time parsing
         - FreeBSD: guard against counter rollback
         - FreeBSD: populate jail path
+        - both: self-heal a corrupt/truncated cache instead of erroring every run
+        - both: write the cache atomically to avoid truncated cache files
+        - fix leaked $@ that turned a handled cache error into "Failed to run backend"
 
 1.0.4   2026-05-09/14:30
         - fix handling of include/exclude stuff for FreeBSD
