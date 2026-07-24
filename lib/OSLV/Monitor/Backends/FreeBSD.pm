@@ -483,10 +483,23 @@ sub run {
 									&& $stat_value >= $proc_cache->{$cache_name}{$stat} )
 								{
 									$stat_value = ( $stat_value - $proc_cache->{$cache_name}{$stat} ) / 300;
-								} else {
-									# either no cached previous value or the counter went
-									# backwards (reset/PID reuse), so treat it as a fresh counter
+								} elsif ( defined( $proc_cache->{$cache_name} )
+									&& defined( $proc_cache->{$cache_name}{$stat} ) )
+								{
+									# the counter went backwards (reset/PID reuse), so the raw
+									# value is what has accrued since then
 									$stat_value = $stat_value / 300;
+								} elsif ( looks_like_number( $proc->{'elapsed-times'} )
+									&& $proc->{'elapsed-times'} <= 300 )
+								{
+									# no cached previous value, but the proc is younger than the
+									# polling interval, so the total accrued is from this interval
+									$stat_value = $stat_value / 300;
+								} else {
+									# a old proc with no cached previous value, so zero it to
+									# avoid a spike from the accumulated total... the raw values
+									# cached below provide the delta for the next run
+									$stat_value = 0;
 								}
 								$data->{oslvms}{$jail}{$stat}
 									= $data->{oslvms}{$jail}{$stat} + $stat_value;

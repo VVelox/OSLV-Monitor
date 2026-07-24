@@ -140,6 +140,9 @@ sub new {
 			'major-faults'                 => 1,
 			'involuntary-context-switches' => 1,
 			'minor-faults'                 => 1,
+			'nr_bursts'                    => 1,
+			'nr_periods'                   => 1,
+			'nr_throttled'                 => 1,
 			'received-messages'            => 1,
 			'sent-messages'                => 1,
 			'swaps'                        => 1,
@@ -170,9 +173,6 @@ sub new {
 			'thp_collapse_alloc'           => 1,
 			'thp_swpout'                   => 1,
 			'thp_swpout_fallback'          => 1,
-			'system_usec'                  => 1,
-			'usage_usec'                   => 1,
-			'user_usec'                    => 1,
 			'zswpin'                       => 1,
 			'zswpout'                      => 1,
 			'zswpwb'                       => 1,
@@ -647,11 +647,12 @@ sub run {
 					} ## end foreach my $found_switch (@switches_find)
 				} ## end if ( -f '/proc/' . $pid . '/status' )
 			};
-			$vol_ctxt_switches = $self->cache_process( $cache_name, 'voluntary-context-switches', $vol_ctxt_switches );
+			$vol_ctxt_switches
+				= $self->cache_process( $cache_name, 'voluntary-context-switches', $vol_ctxt_switches, $etimes );
 			$data->{totals}{'voluntary-context-switches'}
 				= $data->{totals}{'voluntary-context-switches'} + $vol_ctxt_switches;
 			$invol_ctxt_switches
-				= $self->cache_process( $cache_name, 'involuntary-context-switches', $invol_ctxt_switches );
+				= $self->cache_process( $cache_name, 'involuntary-context-switches', $invol_ctxt_switches, $etimes );
 			$data->{totals}{'involuntary-context-switches'}
 				= $data->{totals}{'involuntary-context-switches'} + $invol_ctxt_switches;
 
@@ -964,6 +965,7 @@ sub cache_process {
 	my $name      = $_[1];
 	my $var       = $_[2];
 	my $new_value = $_[3];
+	my $age       = $_[4];
 
 	if ( !defined($name) || !defined($var) || !defined($new_value) ) {
 		warn('name, var, or new_value is undef');
@@ -981,43 +983,20 @@ sub cache_process {
 	}
 	$self->{new_cache}{$name}{$var} = $new_value;
 
-	# not seen it yet
+	# first time seeing this counter, so there is no previous value to compute
+	# a delta against... if what it is for is older than the polling interval,
+	# or of unknown age, return 0 to avoid a spike from the accumulated total,
+	# but for young ones the total accrued is from this interval, so usable...
+	# either way the raw value saved to new_cache above provides the delta next run
 	if ( !defined( $self->{cache}{$name}{$var} ) ) {
-		if ( $new_value != 0 ) {
-			if (   $var eq 'cpu-time'
-				|| $var eq 'system-time'
-				|| $var eq 'user-time'
-				|| $var eq 'throttled-time'
-				|| $var eq 'burst-time'
-				|| $var eq 'core_sched.force_idle-time' )
-			{
-				$new_value = $new_value / $self->{time_divider};
-			}
-			$new_value = $new_value / 300;
-		} ## end if ( $new_value != 0 )
-		return $new_value;
-	} ## end if ( !defined( $self->{cache}{$name}{$var}...))
-
-	if ( $new_value >= $self->{cache}{$name}{$var} ) {
-		$new_value = $new_value - $self->{cache}{$name}{$var};
-		if ( $new_value != 0 ) {
-			if (   $var eq 'cpu-time'
-				|| $var eq 'system-time'
-				|| $var eq 'user-time'
-				|| $var eq 'throttled-time'
-				|| $var eq 'burst-time'
-				|| $var eq 'core_sched.force_idle-time' )
-			{
-				$new_value = $new_value / $self->{time_divider};
-			}
-			$new_value = $new_value / 300;
-		} ## end if ( $new_value != 0 )
-		if ( $new_value > 10000000000 ) {
-			$self->{new_cache}{$name}{$var} = 0;
+		if ( !defined($age) || !looks_like_number($age) || $age > 300 ) {
 			return 0;
 		}
-		return $new_value;
-	} ## end if ( $new_value >= $self->{cache}{$name}{$var...})
+	} elsif ( $new_value >= $self->{cache}{$name}{$var} ) {
+		# if the counter instead went backwards it was reset, such as the cgroup
+		# being recreated, in which case the raw value is what has accrued since then
+		$new_value = $new_value - $self->{cache}{$name}{$var};
+	}
 
 	if ( $new_value != 0 ) {
 		if (   $var eq 'cpu-time'
@@ -1031,6 +1010,12 @@ sub cache_process {
 		}
 		$new_value = $new_value / 300;
 	} ## end if ( $new_value != 0 )
+
+	# discard garbage values... new_cache keeps the raw value saved above so
+	# the delta for the next run is still sane
+	if ( $new_value > 10000000000 ) {
+		return 0;
+	}
 
 	return $new_value;
 } ## end sub cache_process
