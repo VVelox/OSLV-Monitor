@@ -447,6 +447,13 @@ sub run {
 						. '' );
 			}
 			foreach my $proc ( @{ $ps->{'process-information'}{process} } ) {
+				# skip the kernel idle process... on a multi-core system its
+				# per-CPU idle threads make ps report roughly ncpu*100% for
+				# percent-cpu, which would otherwise be summed in and wildly
+				# inflate the reported jail/total CPU usage
+				if ( defined( $proc->{command} ) && $proc->{command} eq '[idle]' ) {
+					next;
+				}
 				if ( $proc->{'elapsed-times'} ne '-' ) {
 					my $cache_name
 						= $proc->{pid} . '-' . $proc->{uid} . '-' . $proc->{gid} . '-' . $jail . '-' . $proc->{command};

@@ -579,7 +579,7 @@ sub run {
 	#	my $ps_output = `ps -haxo pid,uid,gid,cgroupns,%cpu,%mem,rss,vsize,trs,drs,size,cgroup 2> /dev/null`;
 	#	if ( $? != 0 ) {
 	#		$self->{cgroupns_usable} = 0;
-	my $ps_output = `ps -haxo pid,uid,gid,%cpu,%mem,rss,vsize,trs,drs,size,etimes,cgroup 2> /dev/null`;
+	my $ps_output = `ps -haxo pid,uid,gid,%cpu,%mem,rss,vsize,trs,drs,size,etimes,cgroup,comm 2> /dev/null`;
 	#	}
 	my @ps_output_split = split( /\n/, $ps_output );
 	my %found_cgroups;
@@ -600,14 +600,23 @@ sub run {
 		$line =~ s/^\s+//;
 		my $vol_ctxt_switches   = 0;
 		my $invol_ctxt_switches = 0;
-		my ( $pid, $uid, $gid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup );
+		my ( $pid, $uid, $gid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup, $comm );
 		#		if ( $self->{cgroupns_usable} ) {
 		#			( $pid, $uid, $gid, $cgroupns, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )#
 		#				= split( /\s+/, $line );
 		#		} else {
-		( $pid, $uid, $gid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup )
-			= split( /\s+/, $line );
+		# comm is captured last, with a split limit, so a command name containing
+		# whitespace does not shift the earlier fields
+		( $pid, $uid, $gid, $percpu, $permem, $rss, $vsize, $trs, $drs, $size, $etimes, $cgroup, $comm )
+			= split( /\s+/, $line, 13 );
 		#		}
+		# skip the idle/swapper task... the Linux equivalent of FreeBSD's
+		# [idle]... the true idle is PID 0 (swapper), which ps normally does
+		# not list, but guard against it defensively so it can never be
+		# counted as CPU usage
+		if ( defined($comm) && ( $comm eq 'swapper' || $comm =~ m{^swapper/} ) ) {
+			next;
+		}
 		if ( $cgroup =~ /^0\:\:\// ) {
 
 			my $cache_name = 'proc-' . $pid . '-' . $uid . '-' . $gid . '-' . $cgroup;
