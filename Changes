@@ -1,6 +1,6 @@
 Revision history for OSLV-Monitor
 
-1.0.5   2026-07-22/12:00
+1.0.5   2026-07-24/15:45
         - cgroups: fix io.stat parsing so IO stats are recorded
         - cgroups: emit throttled/burst/force_idle-time, percpu, thp_swpout, and zswpwb stats
         - cgroups: fix container IP mapping key and cache-save error message
@@ -23,6 +23,7 @@ Revision history for OSLV-Monitor
         - both: self-heal a corrupt/truncated cache instead of erroring every run
         - both: write the cache atomically to avoid truncated cache files
         - fix leaked $@ that turned a handled cache error into "Failed to run backend"
+        - do not include idle
 
 1.0.4   2026-05-09/14:30
         - fix handling of include/exclude stuff for FreeBSD
