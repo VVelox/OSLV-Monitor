@@ -1,6 +1,6 @@
 Revision history for OSLV-Monitor
 
-1.0.6   2026-08-04/00:00
+1.0.6   2026-08-04/13:15
         - cgroups: get the cgroup from /proc/<pid>/cgroup as ps truncates the
           cgroup column to 27 characters, mangling names and breaking stat reads
         - cgroups: sum the stats of all cgroups mapping to the same name
